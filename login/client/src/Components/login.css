@@ -1,0 +1,116 @@
+body {
+  font-family: Arial, sans-serif;
+  background-color: #f4f4f9;
+  margin: 0;
+  padding: 0;
+}
+
+.head1 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #4f82e7;
+  padding: 10px 20px;
+  color: white;
+  width: 100%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  box-sizing: border-box;
+  height: 60px; /* Fixed height for header */
+}
+
+.logo {
+  height: 40px;
+}
+
+.nav-link {
+  color: white;
+  text-decoration: none;
+  cursor: pointer;
+  padding: 5px 10px;
+  background-color: rgb(218, 184, 184);
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.nav-link:hover {
+  background-color: #0056b3;
+}
+
+.login-page {
+  padding-top: 80px; /* Add padding to ensure form is not overlapped by header */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+h1 {
+  margin-top: 20px;
+}
+
+.form {
+  background: white;
+  padding: 30px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 400px;
+  margin-top: 20px; /* Add margin to ensure spacing from header */
+}
+
+/* form input,
+form label {
+  width: 100%;
+  padding: 10px;
+  margin: 10px 0;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
+} */
+
+form button {
+  background-color: white;
+  color: white;
+  border: none;
+  padding: 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  width: 100%;
+  margin-top: 10px;
+}
+
+form button:hover {
+  background-color: #0056b3;
+}
+
+.message {
+  margin-top: 20px;
+}
+
+.login-with-google-btn {
+  background-color: #db4437;
+  color: white;
+  border: none;
+  padding: 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  width: 100%;
+  margin-top: 20px;
+}
+
+.login-with-google-btn:hover {
+  background-color: #c23321;
+}
+
+a {
+  text-decoration: none;
+  color: #007bff;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+.for{
+  padding-left: 100px;
+}

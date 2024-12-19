@@ -1,0 +1,111 @@
+/* General Styling */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Arial', sans-serif;
+}
+
+body {
+  background-color: #f4f4f9;
+  color: #333;
+}
+
+.admin-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.admin-header {
+  background-color: #4CAF50;
+  color: white;
+  padding: 40px 20px; /* Increased padding to make the header larger */
+  position: relative;
+  height: 100px; /* Optionally increase the height */
+}
+
+
+.admin-nav {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+}
+
+.admin-nav ul {
+  list-style-type: none;
+  display: flex;
+  justify-content: flex-end;
+  margin: 0;
+  padding: 0;
+}
+
+.admin-nav ul li {
+  margin-left: 20px;
+}
+
+.admin-nav ul li a {
+  color: white;
+  text-decoration: none;
+  font-size: 18px;
+  transition: color 0.3s ease-in-out;
+}
+
+.admin-nav ul li a:hover {
+  color: #ffeb3b;
+}
+
+.admin-main {
+  flex-grow: 1;
+  padding: 40px;
+}
+
+.welcome-section {
+  text-align: center;
+  margin-bottom: 50px;
+}
+
+.welcome-section h2 {
+  font-size: 32px;
+  color: #333;
+}
+
+.welcome-section p {
+  font-size: 18px;
+  color: #666;
+  margin-top: 10px;
+}
+
+.admin-cards {
+  display: flex;
+  justify-content: space-between;
+}
+
+.card {
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  flex: 1;
+  margin: 0 10px;
+}
+
+.card h3 {
+  font-size: 24px;
+  color: #4CAF50;
+  margin-bottom: 15px;
+}
+
+.card p {
+  font-size: 16px;
+  color: #777;
+}
+
+.admin-footer {
+  background-color: #333;
+  color: white;
+  text-align: center;
+  padding: 10px;
+  font-size: 14px;
+}

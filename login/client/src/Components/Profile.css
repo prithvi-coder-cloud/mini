@@ -1,0 +1,27 @@
+.profile-page {
+  padding: 20px;
+}
+
+.profile-form {
+  display: flex;
+  flex-direction: column;
+  max-width: 400px;
+  margin: auto;
+}
+
+.profile-form label {
+  margin-bottom: 10px;
+}
+
+.profile-form input {
+  margin-top: 5px;
+  margin-bottom: 15px;
+  padding: 8px;
+  font-size: 16px;
+}
+
+.profile-form button {
+  padding: 10px;
+  font-size: 16px;
+  cursor: pointer;
+}

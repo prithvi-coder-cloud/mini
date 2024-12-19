@@ -1,0 +1,105 @@
+.questions-container {
+  max-width: 800px;
+  margin: 20px auto;
+  padding: 20px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.head {
+  text-align: right;
+  margin-bottom: 20px;
+}
+
+.nav-link {
+  font-size: 16px;
+  color: #007bff;
+}
+
+.questions-content {
+  margin-top: 10px;
+}
+
+.questions-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.question-item {
+  margin-bottom: 20px;
+}
+
+.question-item p {
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+ul {
+  list-style-type: none; /* Remove default list styling */
+  padding: 0;
+}
+
+li {
+  display: flex; /* Use flexbox to align radio buttons and labels */
+  align-items: center; /* Center align items vertically */
+  margin-bottom: 10px; /* Add space between options */
+}
+
+input[type="radio"] {
+  margin-right: 8px; /* Space between radio button and label */
+  cursor: pointer; /* Pointer cursor for better UX */
+}
+
+label {
+  font-size: 16px; /* Adjust font size if necessary */
+  cursor: pointer; /* Change cursor to pointer on hover */
+  display: flex; /* Make the label a flex container */
+  align-items: center; /* Center align items within the label */
+  gap: 0; /* Remove any gap between the radio button and the label content */
+}
+
+.submit-button {
+  padding: 10px 15px;
+  background-color: #28a745; /* Green background */
+  color: white; /* White text */
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.submit-button:hover {
+  background-color: #218838; /* Darker green on hover */
+}
+
+.score-popup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: white;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.score-content {
+  text-align: center;
+}
+
+.score-content button {
+  margin-top: 10px;
+  padding: 10px 15px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.score-content button:hover {
+  background-color: #0056b3;
+}

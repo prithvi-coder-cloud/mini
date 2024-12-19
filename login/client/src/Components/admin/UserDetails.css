@@ -1,0 +1,86 @@
+/* General styling for the container */
+.user-details-container {
+    padding: 40px;
+    max-width: 1200px;
+    margin: 0 auto;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Heading styling */
+  h1 {
+    text-align: center;
+    font-size: 36px;
+    color: #333;
+    margin-bottom: 40px;
+  }
+  
+  /* Table styling */
+  .user-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+  }
+  
+  .user-table th,
+  .user-table td {
+    padding: 15px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+  }
+  
+  .user-table th {
+    background-color: #4CAF50;
+    color: white;
+    font-weight: bold;
+    font-size: 16px;
+  }
+  
+  .user-table td {
+    color: #555;
+  }
+  
+  /* No users found row styling */
+  .no-users {
+    text-align: center;
+    color: #888;
+    font-style: italic;
+  }
+  
+  /* Action buttons styling */
+  .action-btn {
+    padding: 8px 12px;
+    margin-right: 8px;
+    font-size: 14px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease-in-out;
+  }
+  
+  .delete-btn {
+    background-color: #ff4d4d;
+    color: white;
+  }
+  
+  .delete-btn:hover {
+    background-color: #e60000;
+  }
+  
+  .update-btn {
+    background-color: #4CAF50;
+    color: white;
+  }
+  
+  .update-btn:hover {
+    background-color: #45a049;
+  }
+  
+  /* Loading spinner styling */
+  .loading-spinner {
+    text-align: center;
+    font-size: 24px;
+    color: #333;
+  }
+  

@@ -1,0 +1,63 @@
+/* General styles for the header */
+header {
+    background-color: #4a4ab6;
+    padding: 10px 20px;
+  }
+  
+  /* Flex container for nav items */
+  nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  
+  /* Logo and title container */
+  .logo-container {
+    display: flex;
+    align-items: center;
+  }
+  
+  /* Logo styling */
+  .logo {
+    height: 30px;
+    width: auto;
+    margin-right: 10px;
+    
+  }
+  
+  /* Styling for Job Board title */
+  .left {
+    color: white;
+    margin: 0;
+    font-size: 24px;
+    font-weight: bold;
+  }
+  
+  /* Flex container for right section */
+  .right ul {
+    list-style-type: none;
+    display: flex;
+    align-items: center;
+    margin: 0;
+    padding: 0;
+  }
+  
+  /* Navigation links */
+  .right ul li {
+    margin-left: 20px;
+  }
+  
+  .right ul li a {
+    color: white;
+    text-decoration: none;
+    font-weight: bold;
+  }
+  
+  /* Style for the user's image */
+  .right ul li img {
+    height: 40px;
+    width: 40px;
+    border-radius: 50%;
+    margin-left: 10px;
+  }
+  

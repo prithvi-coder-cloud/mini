@@ -1,0 +1,18 @@
+.radio-container {
+    display: flex;
+    gap: 20px; /* Adjust spacing between the radio buttons */
+  }
+  
+  .sidebar-label-container {
+    display: flex;
+    align-items: center;
+  }
+  
+  .sidebar-label-container input[type="radio"] {
+    margin-right: 5px; /* Space between radio button and text */
+  }
+  
+  .checkmark {
+    margin-left: 5px; /* Adjust the spacing between the radio button and the label */
+  }
+  
