@@ -89,7 +89,7 @@ function App() {
         <Route path="/postcourse" element={<PostCourse />} />
         <Route path="/dashboard1" element={<Dashboard1 />} />
         <Route path="/header" element={<ProtectedRoute><Header /></ProtectedRoute>} />
-        <Route path="/courselist" element={<CourseList />} />
+        <Route path="/courselist" element={<CourseList />} /> 
         <Route path="/course/:id" element={<CourseDetails />} />
         <Route path="/generatequestions/:id" element={<GenerateQuestions />} />
         <Route path="/courselist1" element={<CourseList1/>}/>
