@@ -7,13 +7,16 @@
 }
 
 .course-header {
+  background-color: rgb(112, 112, 245);
+  padding: 10px 0;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 20px;
-  background-color: #007bff;
-  color: white;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  justify-content: space-between;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 1000;
 }
 
 .logo {
@@ -36,10 +39,10 @@
 }
 
 .course-content-container {
-  display: flex;
-  flex: 1;
-  padding: 20px;
-  justify-content: center;
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .course-main-content {
@@ -90,20 +93,19 @@
 
 .course-listing {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 20px;
-  justify-items: stretch;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 2rem;
+  padding: 1rem;
 }
 
 .course-card {
-  background-color: white;
-  border-radius: 8px;
+  background: white;
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease;
   display: flex;
   flex-direction: column;
-  height: 100%;
 }
 
 .course-card:hover {
@@ -111,53 +113,73 @@
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
 }
 
-.course-logo {
+.course-image-container {
   width: 100%;
   height: 200px;
-  object-fit: cover;
-  border-bottom: 4px solid #f1f1f1;
+  overflow: hidden;
+  position: relative;
+}
+
+.course-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: white;
+  padding: 1rem;
 }
 
 .course-details {
-  padding: 15px;
+  padding: 1.5rem;
+  flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  flex-grow: 1;
+}
+
+.course-info {
+  display: flex;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.course-info p {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #64748b;
 }
 
 .course-title {
-  font-size: 1.4em;
-  font-weight: bold;
-  color: #333;
-  margin-bottom: 10px;
+  font-size: 1.25rem;
+  color: #1e293b;
+  margin-bottom: 0.5rem;
 }
 
 .course-description {
-  font-size: 0.95em;
-  color: #555;
-  margin-bottom: 15px;
+  color: #64748b;
+  margin-bottom: 1.5rem;
+  line-height: 1.6;
 }
 
 .course-button-container {
   margin-top: auto;
-  display: flex;
-  justify-content: flex-start;
 }
 
 .course-button {
-  padding: 12px 20px;
-  background-color: #007bff;
+  width: 100%;
+  padding: 0.75rem;
+  background-color: #4f46e5;
   color: white;
   border: none;
-  border-radius: 5px;
+  border-radius: 6px;
+  font-weight: 500;
   cursor: pointer;
-  font-size: 16px;
-  transition: background-color 0.3s ease;
+  transition: all 0.2s ease;
 }
 
 .course-button:hover {
-  background-color: #0056b3;
+  background-color: #4338ca;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.2);
 }
 
 .course-loading,
@@ -187,4 +209,197 @@ p {
 
 .course-error {
   color: #d9534f;
+}
+
+/* Add search hero styles from Dashboard */
+.search-hero {
+  background: linear-gradient(to right, #2c3e50, #3498db);
+  padding: 2rem 1rem;
+  text-align: center;
+  color: white;
+  margin-top: 0px;
+}
+
+.search-hero h1 {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  color: white;
+}
+
+.search-subtitle {
+  font-size: 1.2rem;
+  margin-bottom: 2rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Add responsive styles */
+@media (max-width: 768px) {
+  .course-listing {
+    grid-template-columns: 1fr;
+  }
+
+  .search-hero h1 {
+    font-size: 2rem;
+  }
+
+  .course-content-container {
+    padding: 1rem;
+  }
+}
+
+/* Add no results styling */
+.no-results {
+  text-align: center;
+  padding: 3rem;
+  color: #64748b;
+  grid-column: 1 / -1;
+}
+
+.no-results i {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.course-content {
+  padding: 20px;
+  margin-top: 20px;
+}
+
+.search-container {
+  margin-bottom: 30px;
+}
+
+.search-input-wrapper {
+  position: relative;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.search-input {
+  width: 100%;
+  padding: 12px 40px 12px 15px;
+  border: 1px solid #ddd;
+  border-radius: 25px;
+  font-size: 16px;
+  outline: none;
+  transition: border-color 0.3s;
+}
+
+.search-input:focus {
+  border-color: #007bff;
+}
+
+.search-icon {
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #666;
+}
+
+.courses-section {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.courses-section h1 {
+  text-align: center;
+  margin-bottom: 30px;
+  color: #333;
+}
+
+.courses-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 25px;
+  padding: 20px;
+}
+
+.course-card {
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  overflow: hidden;
+  transition: transform 0.3s;
+}
+
+.course-card:hover {
+  transform: translateY(-5px);
+}
+
+.course-logo {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+}
+
+.course-details {
+  padding: 20px;
+}
+
+.course-title {
+  margin: 0 0 15px;
+  color: #333;
+  font-size: 1.5rem;
+}
+
+.course-difficulty,
+.course-fee {
+  margin: 10px 0;
+  color: #666;
+}
+
+.course-description {
+  margin: 15px 0;
+  color: #555;
+  line-height: 1.5;
+}
+
+.enroll-button {
+  width: 100%;
+  padding: 12px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background-color 0.3s;
+}
+
+.enroll-button:hover {
+  background-color: #0056b3;
+}
+
+.no-courses {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+}
+
+.no-courses button {
+  margin-top: 15px;
+  padding: 10px 20px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.course-loading,
+.course-error {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+}
+
+.course-error button {
+  margin-top: 15px;
+  padding: 10px 20px;
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
 }

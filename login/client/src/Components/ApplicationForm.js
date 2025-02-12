@@ -8,7 +8,9 @@ const ApplicationForm = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const job = location.state?.job || {}; // Get the job details from state or default to an empty object
+  const [userdata, setUserdata] = useState({});
 
+  // Initialize formData with empty values
   const [formData, setFormData] = useState({
     firstName: '',
     middleName: '',
@@ -18,7 +20,7 @@ const ApplicationForm = () => {
     city: '',
     state: '',
     zipCode: '',
-    email: '',
+    email: '', // This will be populated from sessionStorage
     phone: '',
     linkedInProfile: '',
     companyName: job.companyName || '', // Use the job's company name
@@ -32,9 +34,64 @@ const ApplicationForm = () => {
   const minDate = "2000-01-01";
   const maxDate = "2003-12-31";
 
+  // Get user data and set email
   useEffect(() => {
-    console.log('Company ID:', formData.companyId); // Log the company ID to the console
-    console.log('Job ID:', formData.jobId); // Log the job ID to the console
+    const getUser = async () => {
+      try {
+        const response = await axios.get(`${process.env.REACT_APP_API_URL}/login/success`, { withCredentials: true });
+        setUserdata(response.data.user);
+        
+        // Get email from response or sessionStorage
+        const userEmail = response.data.user.email || sessionStorage.getItem('email');
+        console.log("User email in ApplicationForm:", userEmail);
+
+        // Update formData with the email
+        setFormData(prev => ({
+          ...prev,
+          email: userEmail
+        }));
+
+        // Fetch profile data using the email
+        if (userEmail) {
+          try {
+            const profileResponse = await axios.get(`${process.env.REACT_APP_API_URL}/profile?email=${userEmail}`);
+            console.log("Profile Response:", profileResponse.data);
+            
+            if (profileResponse.data.profile) {
+              const profileData = profileResponse.data.profile;
+              console.log("Found matching profile:", profileData);
+              
+              // Update form data with profile information
+              setFormData(prev => ({
+                ...prev,
+                firstName: profileData.firstName || '',
+                middleName: profileData.middleName || '',
+                lastName: profileData.lastName || '',
+                phone: profileData.phoneNumber || '',
+                linkedInProfile: profileData.linkedinProfile || '',
+                city: profileData.city || '',
+                state: profileData.state || '',
+                email: userEmail // Keep the email from the session
+              }));
+            } else {
+              console.log("No matching profile found for email:", userEmail);
+            }
+          } catch (profileError) {
+            console.error("Error fetching profile data:", profileError);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+      }
+    };
+
+    getUser();
+  }, []);
+
+  // Log company and job IDs
+  useEffect(() => {
+    console.log('Company ID:', formData.companyId);
+    console.log('Job ID:', formData.jobId);
   }, [formData.companyId, formData.jobId]);
 
   const handleChange = (e) => {
@@ -89,13 +146,6 @@ const ApplicationForm = () => {
         break;
       case 'zipCode':
         if (!value) error = 'Zip Code is required.';
-        break;
-      case 'email':
-        if (!value) {
-          error = 'Email is required.';
-        } else if (!/\S+@\S+\.\S+/.test(value)) {
-          error = 'Email is invalid.';
-        }
         break;
       case 'phone':
         if (!value) {
@@ -162,7 +212,7 @@ const ApplicationForm = () => {
     const fieldsOrder = [
       'firstName', 'middleName', 'lastName', 'birthDate',
       'street', 'city', 'state', 'zipCode',
-      'email', 'phone', 'linkedInProfile', 'resume'
+      'phone', 'linkedInProfile', 'resume'
     ];
     const currentIndex = fieldsOrder.indexOf(field);
     return !fieldsOrder.slice(0, currentIndex).every(
@@ -320,7 +370,7 @@ const ApplicationForm = () => {
             onBlur={handleBlur}
             placeholder="Email"
             required
-            disabled={isDisabled('email')}
+            disabled={true} // Make email field readonly since it's populated automatically
           />
           {errors.email && <span className="error">{errors.email}</span>}
         </div>

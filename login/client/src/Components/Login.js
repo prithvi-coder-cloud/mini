@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
 import './login.css';
 import logo from './img/logo/job.jpg'; // Path to your logo image
+import 'bootstrap/dist/css/bootstrap.css'
+
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -28,45 +30,60 @@ const Login = () => {
     e.preventDefault();
     try {
       const res = await axios.post(`${process.env.REACT_APP_API_URL}/login`, { email, password });
-      console.log('Login response:', res.data);
 
       if (res.data.user) {
-        console.log('User data:', res.data.user);
-        // Store user data in sessionStorage
-        sessionStorage.setItem('user', JSON.stringify(res.data.user)); // Save user data, including the ObjectId
+        // Store user data in sessionStorage with similar structure as Google login
+        const userData = {
+          ...res.data.user,
+          displayName: res.data.user.name, // Map name to displayName to match Google format
+          email: email,
+          _id: res.data.user._id
+        };
+        
+        sessionStorage.setItem('user', JSON.stringify(userData));
+        sessionStorage.setItem('email', email);
+        sessionStorage.setItem('userId', res.data.user._id);
 
-        // Check if user is a company and save the company’s ObjectId
-        if (res.data.user.role === 'company') {
-          sessionStorage.setItem('companyId', res.data.user_id); // Store company ObjectId (from res.data.user_id)
+        // Navigate based on role
+        if (res.data.user?.role === 'admin') {
+          navigate('/admin');
+        } else if (res.data.user?.role === 'company') {
+          navigate('/companyhome');
+        } else if (res.data.user?.role === 'course provider') {
+          navigate('/course');
+        } else {
+          // For regular users, navigate to Header page like Google login
+          navigate('/header');
         }
-
-        // Log the ObjectId of the user
-        console.log('Logged in user ObjectId:', res.data.user_id);
-      }
-
-      // Navigate based on the role of the user
-      if (res.data.user.role === 'admin') {
-        navigate('/admin');
-      } else if (res.data.user.role === 'company') {
-        navigate('/companyhome');  // Company-specific home page
-      } else if (res.data.user.role === 'course provider') {
-        navigate('/course');  
-      } else if (res.data.msg === 'exist') {
-        navigate('/Home1');
-      } else if (res.data.msg === "Your account is disabled. Please contact support.") {
-        alert("Your account is disabled. Please contact support.");
       } else if (res.data === 'notexist') {
         alert("User doesn't exist or incorrect credentials");
       }
     } catch (e) {
+      console.error('Login error:', e);
       if (e.response && e.response.data) {
         alert(e.response.data.message || 'Something went wrong');
       } else {
         alert('Something went wrong');
       }
-      console.log(e);
     }
   }
+
+  // Add logging for Google login success
+  useEffect(() => {
+    const checkGoogleLogin = async () => {
+      try {
+        const response = await axios.get(`${process.env.REACT_APP_API_URL}/login/success`, { 
+          withCredentials: true 
+        });
+        if (response.data.user) {
+          console.log('Google login user ObjectId:', response.data.user._id);
+        }
+      } catch (error) {
+        console.error('Error checking Google login:', error);
+      }
+    };
+    checkGoogleLogin();
+  }, []);
 
   return (
     <div className='login-page'>
@@ -75,11 +92,12 @@ const Login = () => {
         <nav>
           <ul>
             <li onClick={back}>
-              <a className='nav-link' style={{ cursor: 'pointer' }}>Back</a>
+              <a className='course-nav-link' style={{ cursor: 'pointer' }}>Back</a>
             </li>
           </ul>
         </nav>
       </header>
+      <br></br>
       <h1 style={{ textAlign: 'center' }}>Login</h1>
       <div className='form'>
         <form className='login-form' onSubmit={submit}>
@@ -111,7 +129,7 @@ const Login = () => {
               <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} />
             </span>
           </div>
-          <button id='login' type='submit'>Login</button>
+          <button  id='login' type='submit'>Login</button>
           <p className='message'>
             <Link to='/signup'>Not registered? Create an account</Link>
           </p>
@@ -126,3 +144,9 @@ const Login = () => {
 };
 
 export default Login;
+
+
+
+
+
+

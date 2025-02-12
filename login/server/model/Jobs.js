@@ -32,7 +32,11 @@ const jobSchema = new mongoose.Schema({
   },
   postingDate: { 
     type: Date, 
-    required: true 
+    default: Date.now
+  },
+  expireDate: { 
+    type: Date, 
+    required: true
   },
   experienceLevel: { 
     type: String, 
@@ -50,11 +54,14 @@ const jobSchema = new mongoose.Schema({
     type: String, 
     required: true
   },
-  createdAt: { 
-    type: Date, 
-    default: Date.now 
+  status: {
+    type: Number,
+    default: 1
   }
 });
+
+// Remove the TTL index since we don't want to delete documents
+// jobSchema.index({ expireDate: 1 }, { expireAfterSeconds: 0 });
 
 // Export the model
 module.exports = mongoose.model('Job', jobSchema);

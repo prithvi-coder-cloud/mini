@@ -15,4 +15,11 @@
   .checkmark {
     margin-left: 5px; /* Adjust the spacing between the radio button and the label */
   }
+  .salary-type {
+    display: flex; 
+    gap: 10px; 
+    justify-content: flex-start; 
+    align-items: center; 
+    width: 100%; 
+  }
   

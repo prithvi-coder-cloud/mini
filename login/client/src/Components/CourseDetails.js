@@ -20,51 +20,78 @@ const CourseDetails = () => {
     if (!course) {
       alert('Course information is not available. Please go back and select a course.');
       navigate('/courselist');
+      return;
     }
-  }, [course, navigate]);
 
-  useEffect(() => {
     const fetchCourseMaterials = async () => {
-      if (course) {
-        try {
-          const response = await axios.get(`http://localhost:6005/courses/${course._id}/materials`);
-          setCourseMaterials(response.data);
-        } catch (error) {
-          console.error('Error fetching course materials:', error);
-          setError('Failed to fetch course materials.');
-        } finally {
-          setLoading(false);
+      try {
+        setLoading(true);
+        // Check if course has materials
+        if (!course.courseMaterial) {
+          setCourseMaterials([]);
+          setError('No materials available for this course.');
+          return;
         }
+
+        // Create an array with the single material
+        const materials = [{
+          name: 'Course Material',
+          url: course.courseMaterial
+        }];
+        
+        setCourseMaterials(materials);
+        setError(null);
+
+      } catch (error) {
+        console.error('Error fetching course materials:', error);
+        setError('Failed to fetch course materials. Please try again later.');
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchCourseMaterials();
-  }, [course]);
+  }, [course, navigate]);
 
   const handleDownload = (materialUrl) => {
-    const newWindow = window.open(`${process.env.REACT_APP_API_URL}${materialUrl}`, '_blank');
-    if (newWindow) newWindow.focus();
-    else alert('Please allow popups for this website');
+    try {
+      // Remove any leading slash if present
+      const cleanUrl = materialUrl.startsWith('/') ? materialUrl.substring(1) : materialUrl;
+      const fileUrl = `${process.env.REACT_APP_API_URL}/${cleanUrl}`;
+      window.open(fileUrl, '_blank');
+    } catch (error) {
+      console.error('Error downloading material:', error);
+      alert('Failed to download material. Please try again.');
+    }
   };
 
   const handleComplete = (materialName) => {
     if (!completedMaterials[materialName]) {
-      setCompletedMaterials((prev) => ({
+      setCompletedMaterials(prev => ({
         ...prev,
-        [materialName]: true,
+        [materialName]: true
       }));
       setIsAnyCompleted(true);
     }
   };
 
   const handleNext = () => {
-    const combinedMaterials = courseMaterials.map(material => material.name).join("\n");
-    // Pass course._id along with courseMaterials to the next page
-    navigate(`/generatequestions/${course._id}`, { state: { courseId: course._id, course, courseMaterials: combinedMaterials } });
+    if (!course?._id) {
+      alert('Course information is missing');
+      return;
+    }
+    navigate(`/generatequestions/${course._id}`, { 
+      state: { 
+        courseId: course._id, 
+        course,
+        courseMaterials: courseMaterials.map(m => m.name).join("\n")
+      } 
+    });
   };
 
-  if (loading) return <div>Loading course materials...</div>;
-  if (error) return <div>{error}</div>;
+  if (loading) {
+    return <div className="loading">Loading course materials...</div>;
+  }
 
   return (
     <div>
@@ -81,31 +108,39 @@ const CourseDetails = () => {
       <div className="course-details-container">
         <h1>{course?.courseName}</h1>
         <h2>Course Materials</h2>
-        {courseMaterials.length > 0 ? (
+        
+        {error ? (
+          <div className="error-message">{error}</div>
+        ) : courseMaterials.length > 0 ? (
           <div className="materials-list">
             {courseMaterials.map((material, index) => (
               <div key={index} className="material-item">
                 <div className="material-info">
-                  <button onClick={() => handleDownload(material.url)}>
-                    Open {material.name}
+                  <button 
+                    onClick={() => handleDownload(material.url)}
+                    className="download-button"
+                  >
+                    Open Material
                   </button>
                   <button
-                    id='complete'
                     className={`complete-button ${completedMaterials[material.name] ? 'completed' : ''}`}
                     onClick={() => handleComplete(material.name)}
                     disabled={completedMaterials[material.name]}
                   >
-                    {completedMaterials[material.name] ? '✓' : 'Complete'}
+                    {completedMaterials[material.name] ? '✓ Completed' : 'Mark as Complete'}
                   </button>
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <p>No materials available for this course.</p>
+          <p className="no-materials">No materials available for this course.</p>
         )}
+        
         {isAnyCompleted && (
-          <button id="next" onClick={handleNext} className="next-button">Next</button>
+          <button onClick={handleNext} className="next-button">
+            Next
+          </button>
         )}
       </div>
     </div>

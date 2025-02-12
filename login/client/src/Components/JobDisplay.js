@@ -54,17 +54,47 @@ const JobDisplay = () => {
         </nav>
       </header>
       <div className="job-display-card">
-        <img src={job.companyLogo} alt={`${job.companyName} Logo`} className="company-logo1" />
-        <div className="job-details">
-          <h1 className="job-title">{job.jobTitle}</h1>
-          <h2 className="company-name">{job.companyName}</h2>
-          <p><strong>Location:</strong> {job.jobLocation}</p>
-          <p><strong>Salary:</strong> {job.minPrice} - {job.maxPrice} ({job.salaryType})</p>
-          <p><strong>Experience Level:</strong> {job.experienceLevel}</p>
-          <p><strong>Employment Type:</strong> {job.employmentType}</p>
-          <p className="job-description">{job.description}</p>
+        <div className="company-banner">
+          <img src={job.companyLogo} alt={`${job.companyName} Logo`} className="company-logo1" />
         </div>
-        <button onClick={apply} className="apply-button" id='app' aria-label="Apply for this job">Apply</button>
+        
+        <div className="job-details">
+          <div className="job-header">
+            <h1 className="job-title">{job.jobTitle}</h1>
+            <h2 className="company-name">{job.companyName}</h2>
+          </div>
+          
+          <div className="job-info-grid">
+            <div className="info-item">
+              <span className="info-label">Location:</span>
+              <span className="info-value">{job.jobLocation}</span>
+            </div>
+            <div className="info-item">
+              <span className="info-label">Salary Range:</span>
+              <span className="info-value">₹{job.minPrice} - ₹{job.maxPrice}</span>
+            </div>
+            <div className="info-item">
+              <span className="info-label">Salary Type:</span>
+              <span className="info-value">{job.salaryType}</span>
+            </div>
+            <div className="info-item">
+              <span className="info-label">Experience Level:</span>
+              <span className="info-value">{job.experienceLevel}</span>
+            </div>
+            <div className="info-item">
+              <span className="info-label">Employment Type:</span>
+              <span className="info-value">{job.employmentType}</span>
+            </div>
+            <div className="info-item">
+              <span className="info-label">Job Description:</span>
+              <span className="info-value">{job.description}</span>
+            </div>
+          </div>
+
+          <button onClick={apply} className="apply-button">
+            Apply Now
+          </button>
+        </div>
       </div>
     </div>
   );

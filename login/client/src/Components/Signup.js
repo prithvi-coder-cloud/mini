@@ -10,8 +10,6 @@ const Signup = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [cpassword, setCPassword] = useState('');
-  const [dob, setDob] = useState('');
-  const [linkedIn, setLinkedIn] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState({});
@@ -51,15 +49,9 @@ const Signup = () => {
     setTouched({ ...touched, [field]: true });
   };
 
-  // Set max date for the Date of Birth input field to the last day of 2005 (December 31, 2005)
-  const maxDob = new Date();
-  maxDob.setFullYear(2005, 11, 31); // Set to December 31, 2005 (month is 0-indexed, 11 represents December)
-  const maxDobString = maxDob.toISOString().split('T')[0]; // Format as YYYY-MM-DD
-
   async function submit(e) {
     e.preventDefault();
 
-    // Frontend validation
     if (Object.keys(errors).length > 0) {
       alert('Please fix the errors before submitting');
       return;
@@ -70,9 +62,7 @@ const Signup = () => {
         name,
         email,
         password,
-        cpassword,
-        dob,
-        linkedIn,
+        cpassword
       });
 
       if (res.data === 'exist') {
@@ -81,7 +71,7 @@ const Signup = () => {
         alert('Passwords do not match');
       } else if (res.data === 'notexist') {
         alert('Signup successful');
-        history('/login'); // Redirect to login page after successful signup
+        history('/login');
       } else {
         alert('Something went wrong');
       }
@@ -100,7 +90,6 @@ const Signup = () => {
             <label>Name</label>
             <input
               type='text'
-              name='name'
               value={name}
               onChange={(e) => setName(e.target.value)}
               onBlur={handleBlur('name')}
@@ -115,7 +104,6 @@ const Signup = () => {
             <label>Email</label>
             <input
               type='email'
-              name='email'
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               onBlur={handleBlur('email')}
@@ -131,7 +119,6 @@ const Signup = () => {
             <div className='input-wrapper'>
               <input
                 type={showPassword ? 'text' : 'password'}
-                name='password'
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 onBlur={handleBlur('password')}
@@ -151,7 +138,6 @@ const Signup = () => {
             <div className='input-wrapper'>
               <input
                 type={showConfirmPassword ? 'text' : 'password'}
-                name='cpassword'
                 value={cpassword}
                 onChange={(e) => setCPassword(e.target.value)}
                 onBlur={handleBlur('cpassword')}
@@ -166,42 +152,11 @@ const Signup = () => {
             {errors.cpassword && touched.cpassword && <span className='error'>{errors.cpassword}</span>}
           </div>
 
-          <div className='form-group'>
-            <label>Date of Birth</label>
-            <input
-              type='date'
-              name='dob'
-              value={dob}
-              onChange={(e) => setDob(e.target.value)}
-              onBlur={handleBlur('dob')}
-              className={`input ${errors.dob && touched.dob ? 'invalid' : ''}`}
-              placeholder='Enter your date of birth'
-              required
-              max={maxDobString} // Set max date to December 31, 2005
-            />
-            {errors.dob && touched.dob && <span className='error'>{errors.dob}</span>}
-          </div>
-
-          <div className='form-group'>
-            <label>LinkedIn Profile</label>
-            <input
-              type='url'
-              name='linkedIn'
-              value={linkedIn}
-              onChange={(e) => setLinkedIn(e.target.value)}
-              onBlur={handleBlur('linkedIn')}
-              className={`input ${errors.linkedIn && touched.linkedIn ? 'invalid' : ''}`}
-              placeholder='Enter your LinkedIn profile link'
-              required
-            />
-            {errors.linkedIn && touched.linkedIn && <span className='error'>{errors.linkedIn}</span>}
-          </div>
-
           <button type='submit' className='btn'>
             Signup
           </button>
 
-          <p className='message'>
+          <p className='messages'>
             Already registered? <Link to='/login'>Sign In</Link>
           </p>
         </form>

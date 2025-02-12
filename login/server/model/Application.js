@@ -1,6 +1,16 @@
 const mongoose = require('mongoose');
 
 const applicationSchema = new mongoose.Schema({
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: true,
+    refPath: 'userModel'  // This will allow referencing both user models
+  },
+  userModel: {
+    type: String,
+    required: true,
+    enum: ['users', 'collection']  // Specify which model the userId refers to
+  },
   firstName: String,
   middleName: String,
   lastName: String,
@@ -14,14 +24,18 @@ const applicationSchema = new mongoose.Schema({
   linkedInProfile: String,
   resume: String,
   companyId: {
-    type: mongoose.Schema.Types.Mixed, // Use Mixed type to store an object with dynamic fields
-    required: true, // Ensure companyId is provided
+    type: String,
+    required: true
   },
   jobId: {
-    type: mongoose.Schema.Types.ObjectId, // Store jobId as an ObjectId
-    ref: 'Job', // Reference the Job model
-    required: true, // Ensure jobId is provided
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Job',
+    required: true
   },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
 });
 
 const Application = mongoose.model('Application', applicationSchema);

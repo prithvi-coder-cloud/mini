@@ -7,15 +7,20 @@ const mongoose = require("mongoose");
 const session = require("express-session");
 const passport = require("passport");
 const OAuth2Strategy = require("passport-google-oauth2").Strategy;
-const userdb = require("./model/userschema"); // Import Google OAuth schema
+const users = require("./model/userschema"); // Import Google OAuth schema
 const collection = require("./model/loginschema"); // Import regular login schema
 const Application = require("./model/Application");
 const Payment = require('./model/payment');
 const Profile = require('./model/Profile');
-
+const Feedback = require("./model/Feedback")
 const Course = require("./model/course");
 const DeletedUser = require("./model/restore");
 const Job = require("./model/Jobs");
+const Test = require('./model/Test');
+const Score = require("./model/Score"); // Import the Score model
+const Selection = require("./model/Selection"); // Import the Selection model
+const cron = require('node-cron');
+
 const nodemailer = require('nodemailer');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
@@ -26,6 +31,9 @@ const multer = require('multer'); // Import multer
 const path = require('path');
 const pdfParse = require('pdf-parse');
 const Razorpay = require('razorpay');
+const axios = require('axios');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+const fs = require('fs');
 
 const clientid = process.env.CLIENT_ID;
 const clientsecret = process.env.CLIENT_SECRET;
@@ -37,10 +45,25 @@ mongoose.connect(process.env.DATABASE, {
 }).then(() => console.log("MongoDB connected"))
   .catch(err => console.error("MongoDB connection error:", err));
 
+// Schedule job status update every minute
+cron.schedule('* * * * *', async () => {
+  try {
+    const now = new Date();
+    const result = await Job.updateMany(
+      { expireDate: { $lt: now }, status: 1 },
+      { $set: { status: 0 } }
+    );
+    console.log(`Updated status for ${result.modifiedCount} expired jobs`);
+  } catch (error) {
+    console.error('Error updating job status:', error);
+  }
+});
+
 app.use(cors({
-  origin: ["http://localhost:3000","https://jobboardweb.netlify.app"],
-  methods: "GET,POST,PUT,DELETE",
-  credentials: true
+  origin: ["http://localhost:3000", "https://jobboardweb.netlify.app"],
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true,
+  exposedHeaders: ['Content-Length', 'X-Foo', 'X-Bar'],
 }));
 
 app.use(express.json());
@@ -66,9 +89,9 @@ passport.use(new OAuth2Strategy({
 },
   async (accessToken, refreshToken, profile, done) => {
     try {
-      let user = await userdb.findOne({ googleId: profile.id });
+      let user = await users.findOne({ googleId: profile.id });
       if (!user) {
-        user = new userdb({
+        user = new users({
           googleId: profile.id,
           displayName: profile.displayName,
           email: profile.emails[0].value,
@@ -115,32 +138,66 @@ app.get("/logout", (req, res, next) => {
   });
 });
 
-// Admin credentials
-const adminCredentials = {
-  username: 'admin',  // Admin username
-  password: 'admin'  // Admin password
-};
-
-// Normal login route
+// Update the login route
 app.post("/login", async (req, res) => {
-  const { email, password } = req.body;
   try {
-    // Admin login
-    if (email === adminCredentials.username && password === adminCredentials.password) {
-      return res.status(200).json({ msg: "Admin login", user: { _id: "admin", name: "admin", role: "admin" } });
+    const { email, password } = req.body;
+
+    // Check for admin login first
+    if (email === 'admin' && password === 'admin') {
+      return res.json({ 
+        msg: "exist", 
+        user: {
+          _id: 'admin',
+          email: 'admin',
+          role: 'admin',
+          name: 'Administrator'
+        }
+      });
     }
-    
+
+    // If not admin, check regular users
     const user = await collection.findOne({ email: email });
-    if (user && user.status === 0) {
-      return res.status(403).json({ msg: "Your account is disabled. Please contact support." });
-    }
-    if (user && await bcrypt.compare(password, user.password)) {
-      return res.json({ msg: "exist", user: { _id: user._id, name: user.name, role: user.role } }); // Ensure role and ObjectId are included here
+
+    if (user) {
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (isMatch) {
+        if (user.status === 0) {
+          res.json({ msg: "Your account is disabled. Please contact support." });
+        } else {
+          res.json({ 
+            msg: "exist", 
+            user: {
+              _id: user._id.toString(),
+              email: user.email,
+              role: user.role,
+              name: user.name
+            }
+          });
+        }
+      } else {
+        res.json("notexist");
+      }
     } else {
-      return res.json("notexist");
+      // Check if it's a Google user
+      const googleUser = await users.findOne({ email: email });
+      if (googleUser) {
+        res.json({
+          msg: "exist",
+          user: {
+            _id: googleUser._id.toString(),
+            email: googleUser.email,
+            googleId: googleUser.googleId,
+            displayName: googleUser.displayName
+          }
+        });
+      } else {
+        res.json("notexist");
+      }
     }
-  } catch (e) {
-    return res.json("notexist");
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
@@ -176,20 +233,19 @@ const sendSignupEmail = async (email, name) => {
 };
 
 // Signup route
-// Signup route
 app.post("/signup", async (req, res) => {
-  const { name, email, password, cpassword, dob, linkedIn } = req.body;
+  const { name, email, password, cpassword } = req.body;
 
   try {
     // Check if user already exists
     const existingUser = await collection.findOne({ email });
     if (existingUser) {
-      return res.json("exist"); // User already exists
+      return res.json("exist");
     }
 
     // Check if passwords match
     if (password !== cpassword) {
-      return res.json("passwordmismatch"); // Password mismatch
+      return res.json("passwordmismatch");
     }
 
     // Hash password before saving
@@ -200,20 +256,23 @@ app.post("/signup", async (req, res) => {
       name,
       email,
       password: hashedPassword,
-      dob: new Date(dob), // Ensure dob is stored as a Date object
-      linkedIn,
     });
 
     // Save the user to the database
     await newUser.save();
 
-    // Send email to user (if required)
-    await sendSignupEmail(email, name);
+    // Send notification email
+    try {
+      await sendSignupEmail(email, name);
+    } catch (emailError) {
+      console.error('Error sending signup email:', emailError);
+      // Continue with signup even if email fails
+    }
 
-    return res.json("notexist"); // Signup successful
-  } catch (err) {
-    console.error(err);
-    return res.json("error"); // An error occurred
+    return res.json("notexist");
+  } catch (error) {
+    console.error('Signup error:', error);
+    return res.status(500).json("error");
   }
 });
 
@@ -292,60 +351,85 @@ app.get("/users", async (req, res) => {
   }
 });
 
-//Route to add multiple jobs
-// Job posting route
-app.use(express.urlencoded({ extended: true }));
-app.use('/uploads', express.static(path.join(__dirname, '../client/public/uploads')));
-// Multer configuration
+// Create uploads directory if it doesn't exist
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// Configure multer for file uploads
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, '../client/public/uploads'));
+  destination: function (req, file, cb) {
+    cb(null, uploadDir);
   },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname));
-  },
-});
-
-const upload = multer({ storage });
-
-// Job posting route
-app.post('/jobs', upload.single('companyLogo'), async (req, res) => {
-  try {
-    // Check if the company logo is uploaded
-    if (!req.file) {
-      return res.status(400).json({ message: 'Company logo file is missing' });
-    }
-
-    // Destructure job data from request body
-    const { companyName, jobTitle, minPrice, maxPrice, salaryType, jobLocation, postingDate, experienceLevel, employmentType, description, companyId } = req.body;
-
-    // Prepare job data
-    const jobData = {
-      companyName,
-      jobTitle,
-      companyLogo: `/uploads/${req.file.filename}`,
-      minPrice,
-      maxPrice,
-      salaryType,
-      jobLocation,
-      postingDate,
-      experienceLevel,
-      employmentType,
-      description,
-      companyId
-    };
-
-    // Save the job
-    const job = new Job(jobData);
-    await job.save();
-
-    // Send response
-    res.status(201).json(job);
-  } catch (error) {
-    console.error('Error posting job:', error.message);
-    res.status(500).json({ message: 'Internal server error' });
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + '-' + file.originalname);
   }
 });
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Not an image! Please upload an image.'), false);
+    }
+  }
+});
+
+// Serve static files from uploads directory
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+//Job posting route
+app.post('/jobs', upload.single('companyLogo'), async (req, res) => {
+  try {
+    // Check if file exists
+    if (!req.file) {
+      return res.status(400).json({ message: 'Company logo is required' });
+    }
+
+    // Create job data object
+    const jobData = {
+      companyName: req.body.companyName,
+      jobTitle: req.body.jobTitle,
+      companyLogo: `/uploads/${req.file.filename}`,
+      minPrice: Number(req.body.minPrice),
+      maxPrice: Number(req.body.maxPrice),
+      salaryType: req.body.salaryType,
+      jobLocation: req.body.jobLocation,
+      expireDate: new Date(req.body.expireDate),
+      experienceLevel: req.body.experienceLevel,
+      employmentType: req.body.employmentType,
+      description: req.body.description,
+      companyId: req.body.companyId,
+      status: 1
+    };
+
+    // Create and save new job
+    const job = new Job(jobData);
+    const savedJob = await job.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Job posted successfully',
+      job: savedJob
+    });
+
+  } catch (error) {
+    console.error('Error posting job:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to post job',
+      error: error.message
+    });
+  }
+});
+
 
 
 
@@ -379,17 +463,11 @@ app.get('/jobbs', async (req, res) => {
 
 app.get('/all-jobs', async (req, res) => {
   try {
-    // Fetch all jobs from the database
-    const jobs = await Job.find().populate('companyId'); // Populate companyId if it's a reference
-
-    if (jobs.length === 0) {
-      return res.status(404).json({ message: 'No jobs found' });
-    }
-
-    res.status(200).json(jobs);
+    const jobs = await Job.find({ status: 1 }).sort({ expireDate: 1 });
+    res.json(jobs);
   } catch (error) {
     console.error('Error fetching jobs:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ message: 'Error fetching jobs' });
   }
 });
 
@@ -634,29 +712,54 @@ app.put('/toggleUserStatus/:id', async (req, res) => {
 app.post('/apply', upload.single('resume'), async (req, res) => {
   try {
     const formData = req.body;
+    const userEmail = formData.email;
 
-    // Parse companyId into an object (assuming the companyId is sent as a stringified object)
-    const companyId = JSON.parse(formData.companyId);
+    // First try to find user in Google users collection
+    let userId;
+    let userModel;
+    
+    const googleUser = await mongoose.model('users').findOne({ email: userEmail });
+    if (googleUser) {
+      userId = googleUser._id;
+      userModel = 'users';
+      console.log('Found Google user:', googleUser);
+    } else {
+      // If not found in Google users, check regular users
+      const regularUser = await mongoose.model('collection').findOne({ email: userEmail });
+      if (regularUser) {
+        userId = regularUser._id;
+        userModel = 'collection';
+        console.log('Found regular user:', regularUser);
+      } else {
+        throw new Error('User not found in any collection');
+      }
+    }
 
-    // Save the application
-    const resumePath = req.file ? `/uploads/${req.file.filename}` : '';
-
+    // Create the application with user reference
     const application = new Application({
       ...formData,
-      resume: resumePath,
-      companyId, // Store the company object directly
-      jobId: formData.jobId, // Store the job ID
+      userId: userId,
+      userModel: userModel,
+      resume: req.file ? `/uploads/${req.file.filename}` : '',
+      companyId: formData.companyId,
+      jobId: formData.jobId,
+    });
+
+    console.log('Saving application with user details:', {
+      userId,
+      userModel,
+      email: userEmail
     });
 
     await application.save();
 
-    // Fetch the job details to get the job title and company name
+    // Fetch job details for email
     const job = await Job.findById(formData.jobId);
     if (!job) {
       return res.status(404).json({ error: 'Job not found.' });
     }
 
-    // Email configuration
+    // Send confirmation email
     const transporter = nodemailer.createTransport({
       service: 'Gmail',
       auth: {
@@ -674,7 +777,11 @@ app.post('/apply', upload.single('resume'), async (req, res) => {
 
     await transporter.sendMail(mailOptions);
 
-    res.status(201).json({ message: 'Application submitted successfully and email sent.' });
+    res.status(201).json({ 
+      message: 'Application submitted successfully and email sent.',
+      userId,
+      userModel
+    });
   } catch (err) {
     console.error('Error submitting application:', err);
     res.status(400).json({ error: err.message });
@@ -685,29 +792,49 @@ app.post('/apply', upload.single('resume'), async (req, res) => {
 
 
 //Application Display
+// login/server/app.js
 app.get('/applications', async (req, res) => {
   try {
     const { companyId } = req.query;
-
+    
     if (!companyId) {
-      return res.status(400).json({ message: 'Company ID is required.' });
+      return res.status(400).json({ message: 'Company ID is required' });
     }
 
-    console.log(`Fetching applications for companyId: ${companyId}`);
+    const applications = await Application.find({ companyId })
+      .populate({
+        path: 'jobId',
+        select: 'jobTitle companyName jobLocation' // Select the fields you need
+      })
+      .sort({ createdAt: -1 });
 
-    // Find the applications associated with the company
-    const applications = await Application.find({ 'companyId._id': companyId })
-      .populate('jobId', 'jobTitle');  // Populate the jobTitle from the Job schema
+    console.log('Fetched applications:', applications); // Debug log
+    res.json(applications);
+  } catch (error) {
+    console.error('Error fetching applications:', error);
+    res.status(500).json({ message: 'Error fetching applications' });
+  }
+});
 
-    console.log(`Found ${applications.length} applications`);
+//Application reject
+app.delete('/applications/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
 
-    // Map through applications to add the jobTitle to the response
-    const updatedApplications = applications.map(application => ({
-      ...application.toObject(),
-      jobTitle: application.jobId ? application.jobId.jobTitle : 'Job not found',
-    }));
+    if (!id) {
+      return res.status(400).json({ message: 'Application ID is required.' });
+    }
 
-    res.status(200).json(updatedApplications);
+    console.log(`Deleting application with ID: ${id}`);
+
+    // Delete the application from the database
+    const result = await Application.findByIdAndDelete(id);
+
+    if (!result) {
+      return res.status(404).json({ message: 'Application not found.' });
+    }
+
+    res.status(200).json({ message: 'Application deleted successfully.' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Internal server error' });
@@ -718,32 +845,22 @@ app.post('/send-interview-invite', async (req, res) => {
   try {
     const { applicantEmail, interviewDateTime, jobId } = req.body;
 
-    // Log for debugging
-    console.log('Received applicant email:', applicantEmail);
-    console.log('Received interviewDateTime:', interviewDateTime);
-    console.log('Received jobId:', jobId);
-
     if (!applicantEmail || !interviewDateTime || !jobId) {
       return res.status(400).json({ error: 'Missing required fields.' });
     }
 
-    // Fetch job details to get job title and company name
     const job = await Job.findById(jobId);
     if (!job) {
       return res.status(404).json({ error: 'Job not found.' });
     }
 
-    // Log the job details for debugging
-    console.log('Job details:', job);
-
     const formattedDateTime = new Date(interviewDateTime).toLocaleString();
 
-    // Create transporter for sending email (similar to the working example)
     const transporter = nodemailer.createTransport({
-      service: 'gmail', // Gmail service
+      service: 'gmail',
       auth: {
-        user: process.env.EMAIL, // Your email
-        pass: process.env.PASSWORD, // Your email password or app password
+        user: process.env.EMAIL,
+        pass: process.env.PASSWORD,
       },
     });
 
@@ -754,68 +871,327 @@ app.post('/send-interview-invite', async (req, res) => {
       text: `Dear Applicant,\n\nWe are pleased to invite you to an interview for the ${job.jobTitle} position at ${job.companyName}. The interview is scheduled for ${formattedDateTime}.\n\nBest Regards,\n${job.companyName} Team`,
     };
 
-    // Send the email
     await transporter.sendMail(mailOptions);
 
-    // Send success response
     res.status(200).json({ message: 'Interview invite sent successfully.' });
   } catch (err) {
-    // Log full error details for debugging
-    console.error('Error sending interview invite:', err);  // Log the complete error object
+    console.error('Error sending interview invite:', err);
     res.status(500).json({ error: 'Failed to send interview invite. Please try again later.' });
   }
 });
 
 
-// Route to upload PDF and extract content
-
-app.post('/courses', upload.fields([{ name: 'courseMaterials', maxCount: 10 }, { name: 'courseLogo', maxCount: 1 }]), async (req, res) => {
+// Add test questions endpoint
+app.post('/addtest', async (req, res) => {
   try {
-    if (!req.files.courseLogo) {
-      throw new Error('Course logo file is missing');
+    const { jobTitle, questions, emails, companyId } = req.body;
+
+    // Save test to database
+    const test = new Test({
+      jobTitle,
+      companyId,
+      questions
+    });
+    await test.save();
+
+    // Send emails to applicants
+    const emailPromises = emails.map(async (email) => {
+      try {
+        const mailOptions = {
+          from: process.env.EMAIL,
+          to: email,
+          subject: `Test for ${jobTitle} Position`,
+          html: `
+            <h2>Online Test for ${jobTitle}</h2>
+            <p>You have been invited to take an online test for the ${jobTitle} position.</p>
+            <p>Please click the link below to start your test:</p>
+            <a href="${process.env.CLIENT_URL}/test/${test._id}">Take Test</a>
+            <p>Good luck!</p>
+          `
+        };
+
+        await transporter.sendMail(mailOptions);
+        console.log(`Email sent to ${email}`);
+        return { email, status: 'success' };
+      } catch (emailError) {
+        console.error(`Failed to send email to ${email}:`, emailError);
+        return { email, status: 'failed', error: emailError.message };
+      }
+    });
+
+    const emailResults = await Promise.all(emailPromises);
+    const failedEmails = emailResults.filter(result => result.status === 'failed');
+
+    if (failedEmails.length > 0) {
+      console.warn('Some emails failed to send:', failedEmails);
     }
-    if (!req.files.courseMaterials) {
-      throw new Error('Course materials files are missing');
-    }
 
-    // Validate paymentFee
-    const paymentFee = parseFloat(req.body.paymentFee);
-    if (isNaN(paymentFee)) {
-      throw new Error('Payment fee is invalid or missing');
-    }
+    res.status(201).json({
+      message: 'Test added successfully',
+      testId: test._id,
+      emailResults
+    });
 
-    const mcqQuestions = JSON.parse(req.body.mcqQuestions);
-
-    const courseData = {
-      courseName: req.body.courseName,
-      courseTutor: req.body.courseTutor,
-      courseDifficulty: req.body.courseDifficulty,
-      paymentFee, // Store the payment fee as a number
-      courseDescription: req.body.courseDescription,
-      courseLogo: `/uploads/${req.files.courseLogo[0].filename}`,
-      courseMaterials: req.files.courseMaterials.map(file => `/uploads/${file.filename}`),
-      mcqQuestions
-    };
-
-    const course = new Course(courseData);
-    await course.save();
-    res.status(201).json(course);
   } catch (error) {
-    console.error('Error posting course:', error.message);
-    res.status(500).json({ message: error.message });
+    console.error('Error adding test:', error);
+    res.status(500).json({
+      error: 'Error adding test: ' + error.message
+    });
   }
 });
+
+app.get('/test/:jobTitle', async (req, res) => {
+  const { jobTitle } = req.params;
+
+  try {
+    const test = await Test.findOne({ jobTitle });
+
+    if (!test) {
+      return res.status(404).json({ message: 'Test not found' });
+    }
+
+    // Include companyId in the response
+    res.status(200).json({
+      ...test.toObject(),
+      companyId: test.companyId
+    });
+
+  } catch (error) {
+    console.error('Error fetching test:', error);
+    res.status(500).json({ error: 'Error fetching test.' });
+  }
+});
+
+app.post('/submitTest', async (req, res) => {
+  const { email, jobTitle, selectedOptions, companyId } = req.body;
+
+  if (!email || !jobTitle || !selectedOptions || !companyId) {
+    return res.status(400).json({ message: 'Email, job title, selected options, and companyId are required.' });
+  }
+
+  try {
+    const test = await Test.findOne({ jobTitle });
+    if (!test) {
+      return res.status(404).json({ message: 'Test not found' });
+    }
+
+    let score = 0;
+    test.questions.forEach(question => {
+      if (selectedOptions[question.questionNumber] === question.correctAnswer) {
+        score += 1;
+      }
+    });
+
+    const newScore = new Score({
+      email,
+      jobTitle,
+      score,
+      totalQuestions: test.questions.length,
+      companyId
+    });
+
+    const savedScore = await newScore.save();
+    res.status(201).json(savedScore);
+  } catch (error) {
+    console.error('Error submitting test:', error);
+    res.status(500).json({ error: 'Error submitting test.' });
+  }
+});
+
+
+
+
+
+app.get('/jobtitles', async (req, res) => {
+  const { email } = req.query;
+  console.log('Received email:', email);
+
+  try {
+    // Find applications by email
+    const applications = await Application.find({ email });
+    
+    if (!applications.length) {
+      return res.status(404).json({ message: 'No applications found for this email' });
+    }
+
+    // Extract jobIds from applications
+    const jobIds = applications.map((app) => app.jobId);
+
+    // Find jobs by jobIds
+    const jobs = await Job.find({ _id: { $in: jobIds } });
+
+    // Create a response array with jobTitle and companyName
+    const jobDetails = jobs.map((job) => ({
+      jobTitle: job.jobTitle,
+      companyName: job.companyName,
+      companyLogo: job.companyLogo,
+    }));
+
+    res.json(jobDetails);
+  } catch (error) {
+    console.error('Error fetching job titles:', error);
+    res.status(500).json({ message: 'Error fetching job titles' });
+  }
+});
+
+
+
+
+
+app.get('/highscorers', async (req, res) => {
+  const { companyId } = req.query; // Get companyId from query params
+
+  try {
+    // Find scores only for this company
+    const scores = await Score.find({ companyId });
+
+    const highScorers = scores.filter(user => user.score >= (user.totalQuestions / 2));
+
+    res.json(highScorers.map(user => ({
+      email: user.email,
+      jobTitle: user.jobTitle,
+      score: user.score,
+    })));
+  } catch (error) {
+    console.error('Error fetching high scorers:', error);
+    res.status(500).json({ error: 'Error fetching high scorers' });
+  }
+});
+
+// app.post('/send-email', async (req, res) => {
+//   const { jobTitle } = req.body;
+
+//   if (!jobTitle) {
+//     return res.status(400).json({ error: 'Job title is required' });
+//   }
+
+//   try {
+//     const scores = await Score.find({ jobTitle });
+//     const highScorers = scores.filter(user => user.score >= (user.totalQuestions / 2));
+
+//     if (highScorers.length === 0) {
+//       return res.status(404).json({ error: 'No high scorers found for the job title' });
+//     }
+
+//     const transporter = nodemailer.createTransport({
+//       service: 'gmail',
+//       auth: {
+//         user: process.env.EMAIL,
+//         pass: process.env.PASSWORD,
+//       },
+//     });
+
+//     const mailOptions = {
+//       from: process.env.EMAIL,
+//       to: highScorers.map(user => user.email).join(','),
+//       subject: `Selected for ${jobTitle}`,
+//       html: `
+//         <h1>Congratulations!</h1>
+//         <p>You have been selected for the job role: ${jobTitle}</p>
+//         <h2>High Scorers</h2>
+//         <table border="1">
+//           <tr>
+//             <th>Email</th>
+//             <th>Score</th>
+//           </tr>
+//           ${highScorers.map(user => `
+//             <tr>
+//               <td>${user.email}</td>
+//               <td>${user.score}</td>
+//             </tr>
+//           `).join('')}
+//         </table>
+//         <p>Please follow the instructions for the next steps.</p>
+//       `,
+//     };
+
+//     await transporter.sendMail(mailOptions);
+
+//     res.status(200).json({ message: 'Emails sent successfully.' });
+//   } catch (error) {
+//     console.error('Error sending emails:', error);
+//     res.status(500).json({ error: 'Error sending emails' });
+//   }
+// });
+
+
+
+
+
+
+
+
+
+
+// Route to upload PDF and extract content
+
+app.post('/courses', upload.fields([
+  { name: 'courseMaterial', maxCount: 1 },
+  { name: 'courseLogo', maxCount: 1 }
+]), async (req, res) => {
+  try {
+    const {
+      courseName,
+      courseTutor,
+      courseDifficulty,
+      paymentFee,
+      courseDescription,
+      mcqQuestions,
+      courseProviderId
+    } = req.body;
+
+    // Create new course
+    const course = new Course({
+      courseProviderId,
+      courseName,
+      courseTutor,
+      courseDifficulty,
+      paymentFee,
+      courseDescription,
+      courseLogo: req.files['courseLogo'] ? 
+        `/uploads/${req.files['courseLogo'][0].filename}` : '',
+      courseMaterial: req.files['courseMaterial'] ? 
+        `/uploads/${req.files['courseMaterial'][0].filename}` : '',
+      mcqQuestions: JSON.parse(mcqQuestions)
+    });
+
+    await course.save();
+    res.status(201).json({ message: 'Course created successfully', course });
+  } catch (error) {
+    console.error('Error creating course:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/courses/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const courses = await Course.find({ courseProviderId: userId });
+
+    if (courses.length === 0) {
+      return res.status(404).json({ message: 'No courses found for this user' });
+    }
+
+    res.status(200).json({ courses });
+  } catch (error) {
+    console.error('Error fetching courses:', error);
+    res.status(500).json({ error: 'Failed to fetch courses' });
+  }
+});
+
 
 
 
 app.get('/coursesm', async (req, res) => {
   try {
-    const courses = await Course.find({courseId:req.body._id});
+    const courses = await Course.find(); // Fetch all courses
     res.status(200).json(courses);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching courses', error: error.message });
   }
 });
+
 
 
 // GET route to fetch materials for a specific course
@@ -858,79 +1234,125 @@ app.get('/courses/:id/questions', async (req, res) => {
 const AI_API_URL = 'https://api.openai.com/v1/completions';
 const AI_API_KEY = process.env.AI_API_KEY; // Ensure this is set in your .env file
 
-//Endpoint to generate questions
-app.post('/generate-questions', async (req, res) => {
-  const { courseMaterial } = req.body;
-  if (!courseMaterial) {
-    return res.status(400).json({ error: 'Course material is required' });
-  }
+// Initialize Gemini API
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
+// Add this near your other multer configurations
+const quizUpload = multer({
+  storage: multer.memoryStorage()
+});
+
+app.post('/generate-quiz', quizUpload.single('pdfFile'), async (req, res) => {
   try {
-    const response = await axios.post(
-      AI_API_URL,
+    if (!req.file) {
+      return res.status(400).json({ error: 'No PDF file provided' });
+    }
+
+    // Extract text from PDF buffer
+    const pdfText = await pdfParse(req.file.buffer);
+    if (!pdfText || !pdfText.text) {
+      return res.status(400).json({ error: 'Could not extract text from PDF' });
+    }
+    
+    // Generate questions using Gemini
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    
+    const prompt = `You are a quiz generator. Generate exactly 5 multiple choice questions based on this content:
+    "${pdfText.text.substring(0, 5000)}".
+    
+    Important Rules:
+    1. Questions MUST be based on the provided content only
+    2. Each question must have exactly 4 options
+    3. One option must be the correct answer
+    4. All options must be relevant to the question
+    5. Questions should test understanding of key concepts
+    6. Return ONLY a JSON array with this exact structure:
+    [
       {
-        model: 'text-davinci-003',
-        prompt: `Generate 5 quiz questions and 4 options for each question based on the following course material:\n${courseMaterial}`,
-        max_tokens: 1500,
-        n: 1,
-        stop: ["\n\n"],
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${AI_API_KEY}`,
-        },
+        "question": "question text here",
+        "options": ["option1", "option2", "option3", "option4"],
+        "correctOption": "exact text of correct option"
       }
-    );
+    ]
+    Do not include any other text, markdown, or formatting.`;
 
-    const data = response.data.choices[0].text.trim();
-    const questions = data.split('\n\n').map((q, index) => {
-      const parts = q.split('\n');
-      return {
-        id: `question-${index}`,
-        text: parts[0],
-        options: parts.slice(1),
-      };
-    });
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+    
+    // Clean and parse the response
+    let cleanText = text.replace(/```json/g, '')
+                       .replace(/```/g, '')
+                       .trim();
+    
+    // Ensure the text starts with [ and ends with ]
+    if (!cleanText.startsWith('[') || !cleanText.endsWith(']')) {
+      cleanText = cleanText.substring(
+        cleanText.indexOf('['),
+        cleanText.lastIndexOf(']') + 1
+      );
+    }
+    
+    try {
+      const questions = JSON.parse(cleanText);
+      
+      // Validate each question thoroughly
+      const validQuestions = questions.filter(q => {
+        try {
+          return (
+            q.question && 
+            typeof q.question === 'string' &&
+            Array.isArray(q.options) && 
+            q.options.length === 4 && 
+            q.options.every(opt => typeof opt === 'string' && opt.trim().length > 0) &&
+            q.correctOption &&
+            typeof q.correctOption === 'string' &&
+            q.options.includes(q.correctOption)
+          );
+        } catch {
+          return false;
+        }
+      });
 
-    res.json(questions);
+      if (validQuestions.length === 0) {
+        throw new Error('No valid questions generated');
+      }
+
+      // Ensure exactly 5 questions
+      const finalQuestions = validQuestions.slice(0, 5);
+      res.json({ questions: finalQuestions });
+
+    } catch (parseError) {
+      console.error('JSON parsing error:', parseError);
+      // More specific retry prompt
+      const retryPrompt = `Create 5 multiple choice questions from this text:
+      "${pdfText.text.substring(0, 3000)}".
+      Return only a JSON array of questions. Each question must have:
+      1. A question text
+      2. An array of exactly 4 options
+      3. The correct option text
+      No other text or formatting.`;
+      
+      const retryResult = await model.generateContent(retryPrompt);
+      const retryText = (await retryResult.response).text()
+        .replace(/```json/g, '')
+        .replace(/```/g, '')
+        .trim();
+      
+      const retryQuestions = JSON.parse(retryText);
+      res.json({ questions: retryQuestions.slice(0, 5) });
+    }
   } catch (error) {
-    console.error('Error generating questions:', error);
-    res.status(500).json({ error: 'Failed to generate questions from material.' });
+    console.error('Error generating quiz:', error);
+    res.status(500).json({ 
+      error: 'Failed to generate quiz',
+      details: error.message 
+    });
   }
 });
 
 
 
-// const extractTextFromPDF = async (filePath) => {
-//   const dataBuffer = fs.readFileSync(filePath);
-//   const data = await pdf(dataBuffer);
-//   return data.text;
-// };
-
-// app.post('/generate-questions', async (req, res) => {
-//   try {
-//     const { courseMaterials } = req.body;
-//     const textContent = await extractTextFromPDF(courseMaterials[0]); // Assuming single PDF for simplicity
-
-//     const response = await axios.post('https://api.openai.com/v1/engines/davinci-codex/completions', {
-//       prompt: `Generate 5 MCQ questions from the following text:\n\n${textContent}`,
-//       max_tokens: 1000,
-//       n: 5,
-//       stop: ["\n\n"]
-//     }, {
-//       headers: {
-//         'Authorization': `Bearer YOUR_OPENAI_API_KEY`
-//       }
-//     });
-
-//     const questions = response.data.choices.map(choice => choice.text);
-//     res.status(200).json({ questions });
-//   } catch (error) {
-//     console.error('Error generating questions:', error);
-//     res.status(500).json({ message: error.message });
-//   }
-// });
 
 
 
@@ -1033,46 +1455,880 @@ app.post('/api/payments/save', async (req, res) => {
 
 
 // Fetch profile by email
-app.post('/getProfile', async (req, res) => {
-  const { email } = req.body;
-  try {
-    const profile = await Profile.findOne({ email });
-    if (profile) {
-      res.json({ profile });
-    } else {
-      res.status(404).json({ message: 'Profile not found' });
-    }
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
+// app.post('/getProfile', async (req, res) => {
+//   const { email } = req.body;
+//   try {
+//     const profile = await Profile.findOne({ email });
+//     if (profile) {
+//       res.json({ profile });
+//     } else {
+//       res.status(404).json({ message: 'Profile not found' });
+//     }
+//   } catch (e) {
+//     console.error(e);
+//     res.status(500).json({ message: 'Server error' });
+//   }
+// });
 
-// Create or update profile
-app.post('/saveProfile', async (req, res) => {
-  const { name, email, phoneNumber, linkedIn, dob } = req.body;
+// // Create or update profile
+// app.post('/saveProfile', async (req, res) => {
+//   const { name, email, phoneNumber, linkedIn, dob } = req.body;
+//   try {
+//     const existingProfile = await Profile.findOne({ email });
+//     if (existingProfile) {
+//       // Update existing profile
+//       existingProfile.name = name;
+//       existingProfile.phoneNumber = phoneNumber;
+//       existingProfile.linkedIn = linkedIn;
+//       existingProfile.dob = dob;
+//       await existingProfile.save();
+//     } else {
+//       // Create new profile
+//       const newProfile = new Profile({ name, email, phoneNumber, linkedIn, dob });
+//       await newProfile.save();
+//     }
+//     res.json({ message: 'Profile saved successfully' });
+//   } catch (e) {
+//     console.error(e);
+//     res.status(500).json({ message: 'Server error' });
+//   }
+// });
+
+app.post('/profile', async (req, res) => {
   try {
-    const existingProfile = await Profile.findOne({ email });
-    if (existingProfile) {
+    const profileData = req.body;
+    
+    // Find existing profile or create new one
+    let profile = await Profile.findOne({ email: profileData.email });
+    
+    if (profile) {
       // Update existing profile
-      existingProfile.name = name;
-      existingProfile.phoneNumber = phoneNumber;
-      existingProfile.linkedIn = linkedIn;
-      existingProfile.dob = dob;
-      await existingProfile.save();
+      profile = await Profile.findOneAndUpdate(
+        { email: profileData.email },
+        profileData,
+        { new: true } // Return updated document
+      );
     } else {
       // Create new profile
-      const newProfile = new Profile({ name, email, phoneNumber, linkedIn, dob });
-      await newProfile.save();
+      profile = new Profile(profileData);
+      await profile.save();
     }
-    res.json({ message: 'Profile saved successfully' });
-  } catch (e) {
-    console.error(e);
+
+    res.json({ 
+      success: true, 
+      message: 'Profile saved successfully',
+      profile: profile 
+    });
+
+  } catch (error) {
+    console.error('Error saving profile:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message || 'Failed to save profile'
+    });
+  }
+});
+
+
+// Get profile by email
+app.get('/profile', async (req, res) => {
+  try {
+    const { email } = req.query;
+    const profile = await Profile.findOne({ email });
+    
+    if (!profile) {
+      // If no profile exists, return a 404 but don't clear existing data
+      return res.status(404).json({ 
+        message: 'Profile not found',
+        profile: null 
+      });
+    }
+    
+    res.json({ 
+      success: true,
+      profile: profile 
+    });
+  } catch (error) {
+    console.error('Error fetching profile:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+app.post('/feedback', async (req, res) => {
+  try {
+    const { email, feedbackText, rating } = req.body;
+
+    if (!email || !feedbackText || !rating) {
+      return res.status(400).json({ error: 'Missing required fields.' });
+    }
+
+    const feedback = new Feedback({
+      email,
+      feedbackText,
+      rating,
+    });
+
+    await feedback.save();
+
+    // Optionally, send an email confirmation to the user
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL,
+        pass: process.env.PASSWORD,
+      },
+    });
+
+    const mailOptions = {
+      from: process.env.EMAIL,
+      to: email,
+      subject: 'Feedback Received',
+      text: `Thank you for your feedback! Here is what we received:\n\n${feedbackText}\n\nRating: ${rating}/5`,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.status(201).json({ message: 'Feedback submitted successfully.' });
+  } catch (error) {
+    console.error('Error submitting feedback:', error);
+    res.status(500).json({ error: 'Failed to submit feedback. Please try again later.' });
+  }
+});
+
+module.exports = app;
+
+
+
+app.get('/feedbacks', async (req, res) => {
+  try {
+    const feedbacks = await Feedback.find();
+    res.json(feedbacks);
+  } catch (error) {
+    console.error('Error fetching feedbacks:', error);
+    res.status(500).json({ error: 'Error fetching feedbacks' });
+  }
+});
+
+
+
+// Add this new endpoint to fetch company name
+app.get("/company/profile", async (req, res) => {
+  try {
+    const { email } = req.query;
+    
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" });
+    }
+
+    const user = await collection.findOne({ email });
+    
+    if (!user) {
+      return res.status(404).json({ error: "Company not found" });
+    }
+
+    res.json({ name: user.name });
+  } catch (error) {
+    console.error('Error fetching company profile:', error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// Add selected candidate
+app.post('/selections', async (req, res) => {
+  try {
+    const { email, jobTitle, score, companyId } = req.body;
+
+    if (!email || !jobTitle || !score || !companyId) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const selection = new Selection({
+      email,
+      jobTitle,
+      score,
+      companyId
+    });
+
+    await selection.save();
+    res.status(201).json({ message: 'Selection saved successfully' });
+  } catch (error) {
+    console.error('Error saving selection:', error);
+    res.status(500).json({ error: 'Error saving selection' });
+  }
+});
+
+// Get selected candidates
+app.get('/selections', async (req, res) => {
+  try {
+    const { companyId } = req.query;
+    
+    if (!companyId) {
+      return res.status(400).json({ error: 'Company ID is required' });
+    }
+    
+    const selections = await Selection.find({ companyId });
+    res.json(selections);
+  } catch (error) {
+    console.error('Error fetching selections:', error);
+    res.status(500).json({ error: 'Error fetching selections' });
+  }
+});
+
+// Send invitations
+app.post('/send-invitations', async (req, res) => {
+  try {
+    const { jobTitle } = req.body;
+    const selections = await Selection.find({ jobTitle });
+
+    // Create email transporter
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL,
+        pass: process.env.PASSWORD,
+      },
+    });
+    
+    const emailPromises = selections.map(async (selection) => {
+      const mailOptions = {
+        from: process.env.EMAIL,
+        to: selection.email,
+        subject: `Congratulations! You've been selected for ${jobTitle}`,
+        html: `
+          <h2>Congratulations!</h2>
+          <p>You have been selected for the position of ${jobTitle}.</p>
+          <h3>Selected Candidates:</h3>
+          <table style="border-collapse: collapse; width: 100%;">
+            <tr>
+              <th style="border: 1px solid #ddd; padding: 8px;">Email</th>
+            </tr>
+            ${selections.map(s => `
+              <tr>
+                <td style="border: 1px solid #ddd; padding: 8px;">${s.email}</td>
+              </tr>
+            `).join('')}
+          </table>
+          <p>We are pleased to inform you that you have been selected based on your test performance.</p>
+          <p>Please wait for further instructions regarding the next steps in the recruitment process.</p>
+          <br>
+          <p>Best regards,</p>
+          <p>The Recruitment Team</p>
+        `
+      };
+
+      return transporter.sendMail(mailOptions);
+    });
+
+    await Promise.all(emailPromises);
+    res.json({ success: true, message: 'Invitations sent successfully' });
+  } catch (error) {
+    console.error('Error sending invitations:', error);
+    res.status(500).json({ error: 'Error sending invitations' });
+  }
+});
+
+// Add this new endpoint to fetch userId by email
+app.get('/getUserId/:email', async (req, res) => {
+  try {
+    const { email } = req.params;
+    
+    // Check Google users first
+    const googleUser = await users.findOne({ email });
+    if (googleUser) {
+      return res.json({
+        userId: googleUser._id.toString(),
+        loginType: 'google'
+      });
+    }
+    
+    // Then check regular users
+    const regularUser = await collection.findOne({ email });
+    if (regularUser) {
+      return res.json({
+        userId: regularUser._id.toString(),
+        loginType: 'regular'
+      });
+    }
+    
+    return res.status(404).json({ 
+      message: 'User not found',
+      email: email
+    });
+    
+  } catch (error) {
+    console.error('Error fetching user ID:', error);
+    res.status(500).json({ 
+      message: 'Server error',
+      error: error.message 
+    });
+  }
+});
+
+// Add endpoint to get user details
+app.get('/getUserDetails/:email', async (req, res) => {
+  try {
+    const { email } = req.params;
+    
+    // Check Google users first since this is a Google login
+    const googleUser = await users.findOne({ email });
+    if (googleUser) {
+      return res.json({
+        email,
+        id: googleUser._id,
+        type: 'Google Login'
+      });
+    }
+    
+    // Then check regular users if not found
+    const regularUser = await collection.findOne({ email });
+    if (regularUser) {
+      return res.json({
+        email,
+        id: regularUser._id,
+        type: 'Regular Login'
+      });
+    }
+    
+    res.status(404).json({ message: 'User not found' });
+  } catch (error) {
     res.status(500).json({ message: 'Server error' });
   }
 });
 
+// Add this new endpoint to fetch user applications
+app.get('/user-applications/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        const applications = await Application.find({ userId })
+            .populate({
+                path: 'jobId',
+                select: 'jobTitle companyName companyId'
+            })
+            .sort({ createdAt: -1 }); // Sort by newest first
+        
+        console.log('Found applications:', applications); // Debug log
+        
+        // Transform the data to include company information
+        const transformedApplications = applications.map(app => ({
+            ...app.toObject(),
+            companyName: app.jobId?.companyName || 'Company Not Available',
+            jobTitle: app.jobId?.jobTitle || 'Job Not Available'
+        }));
+        
+        res.json(transformedApplications);
+    } catch (error) {
+        console.error('Error fetching user applications:', error);
+        res.status(500).json({ message: 'Error fetching applications' });
+    }
+});
+
+// Add this new endpoint to fetch user's applications by matching userId
+app.get('/user-applied-jobs/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        console.log('Searching for applications with userId:', userId);
+
+        // Find applications where userId matches
+        const applications = await Application.find({ 
+            userId: mongoose.Types.ObjectId(userId) 
+        }).populate({
+            path: 'jobId',
+            select: 'jobTitle companyName'
+        });
+
+        console.log('Found applications:', applications);
+
+        if (!applications.length) {
+            return res.status(200).json({ 
+                message: 'No applications found',
+                applications: [] 
+            });
+        }
+
+        // Transform the data to include all necessary information
+        const transformedApplications = applications.map(app => ({
+            _id: app._id,
+            jobTitle: app.jobId?.jobTitle || 'Job Title Not Available',
+            companyName: app.jobId?.companyName || 'Company Name Not Available',
+            appliedDate: app.createdAt,
+            status: app.status || 'Pending',
+            resume: app.resume,
+            firstName: app.firstName,
+            lastName: app.lastName,
+            email: app.email
+        }));
+
+        res.json({
+            success: true,
+            applications: transformedApplications
+        });
+
+    } catch (error) {
+        console.error('Error fetching user applications:', error);
+        res.status(500).json({ 
+            success: false,
+            message: 'Error fetching applications',
+            error: error.message 
+        });
+    }
+});
+
+// Modify the view-applications endpoint
+app.get('/view-applications/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        console.log('Fetching applications for userId:', userId);
+
+        // First find applications for this user without converting to ObjectId
+        const applications = await Application.find({ userId });
+
+        console.log('Found raw applications:', applications);
+
+        if (!applications || applications.length === 0) {
+            return res.json({
+                success: true,
+                applications: []
+            });
+        }
+
+        // Get all jobIds from applications
+        const jobIds = applications.map(app => app.jobId);
+        console.log('Job IDs:', jobIds);
+
+        // Find all jobs that match these jobIds
+        const jobs = await Job.find({
+            '_id': { $in: jobIds }
+        });
+
+        console.log('Found matching jobs:', jobs);
+
+        // Transform the data to combine application and job details
+        const transformedData = applications.map(app => {
+            const matchingJob = jobs.find(job => job._id.toString() === app.jobId.toString());
+            console.log('Matching job for application:', matchingJob);
+            
+            return {
+                _id: app._id,
+                jobTitle: matchingJob?.jobTitle || 'Job Title Not Available',
+                companyName: matchingJob?.companyName || 'Company Not Available',
+                jobLocation: matchingJob?.jobLocation || 'Location Not Available',
+                employmentType: matchingJob?.employmentType || 'Not Specified',
+                experienceLevel: matchingJob?.experienceLevel || 'Not Specified',
+                salary: matchingJob ? `${matchingJob.minPrice} - ${matchingJob.maxPrice} ${matchingJob.salaryType}` : 'Not Specified',
+                appliedDate: app.createdAt,
+                resume: app.resume
+            };
+        });
+
+        console.log('Transformed data:', transformedData);
+
+        res.json({
+            success: true,
+            applications: transformedData
+        });
+
+    } catch (error) {
+        console.error('Error fetching applications:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching applications',
+            error: error.message
+        });
+    }
+});
+
+app.post('/recommendations', async (req, res) => {
+  try {
+    const { email } = req.body;
+    console.log('Fetching recommendations for email:', email);
+
+    // 1. Get user's skills from profile
+    const profile = await Profile.findOne({ email });
+    if (!profile || !profile.skills) {
+      console.log('No profile or skills found');
+      return res.json({ recommendations: [] });
+    }
+
+    // 2. Get all available courses
+    const allCourses = await Course.find({}, 'courseName');
+    if (!allCourses.length) {
+      console.log('No courses found');
+      return res.json({ recommendations: [] });
+    }
+
+    // 3. Parse user skills into array
+    const userSkills = profile.skills.toLowerCase().split(',').map(skill => skill.trim());
+    console.log('User skills:', userSkills);
+
+    // 4. Initialize Gemini
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+
+    // 5. Create prompt for skill matching
+    const prompt = `Given these user skills: ${userSkills.join(', ')}
+    And these available courses: ${allCourses.map(c => c.courseName).join(', ')}
+    
+    Return ONLY an array of course names that are most relevant to the user's skills.
+    Consider these matching rules:
+    1. Course name contains or relates to any of the user's skills
+    2. Course content would help develop or enhance the user's existing skills
+    3. Course is a logical next step for someone with these skills
+    
+    Return the response as a simple array of strings, only including course names from the available courses list.`;
+
+    // 6. Get AI recommendations
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    let recommendedCourses = [];
+
+    try {
+      // 7. Parse and clean the AI response
+      const aiText = response.text().replace(/```/g, '').trim();
+      const aiRecommendations = JSON.parse(aiText);
+
+      // 8. Filter to match only existing courses
+      recommendedCourses = allCourses
+        .filter(course => 
+          aiRecommendations.some(rec => 
+            course.courseName.toLowerCase() === rec.toLowerCase()
+          )
+        )
+        .map(course => course.courseName);
+
+    } catch (parseError) {
+      console.error('Error parsing AI response:', parseError);
+      // Fallback: Direct skill matching
+      recommendedCourses = allCourses
+        .filter(course => 
+          userSkills.some(skill =>
+            course.courseName.toLowerCase().includes(skill) ||
+            skill.includes(course.courseName.toLowerCase())
+          )
+        )
+        .map(course => course.courseName);
+    }
+
+    console.log('Final recommendations:', recommendedCourses);
+    res.json({ recommendations: recommendedCourses });
+
+  } catch (error) {
+    console.error('Error in recommendations:', error);
+    res.status(500).json({ 
+      message: 'Error generating recommendations',
+      error: error.message 
+    });
+  }
+});
+
+
+
+
+
+app.post('/chatbot', async (req, res) => {
+  const { message } = req.body;
+  
+  try {
+    const lowerMessage = message.toLowerCase();
+    
+    // Handle greetings
+    const greetings = ['hi', 'hello', 'hey', 'good morning', 'good afternoon', 'good evening'];
+    const farewells = ['bye', 'goodbye', 'see you', 'thank you', 'thanks'];
+    
+    if (greetings.some(greeting => lowerMessage.includes(greeting))) {
+      return res.json({ 
+        reply: "Hello! I'm your Job Board assistant. I can help you with information about courses and jobs. What would you like to know?" 
+      });
+    }
+    
+    if (farewells.some(farewell => lowerMessage.includes(farewell))) {
+      return res.json({ 
+        reply: "Goodbye! Feel free to come back if you have more questions about our courses or jobs." 
+      });
+    }
+
+    // Job listing variations
+    const jobListingQueries = [
+      'list all jobs',
+      'what all jobs',
+      'show jobs',
+      'available jobs',
+      'what jobs do you have',
+      'tell me about the jobs',
+      'can you show me the jobs',
+      'what positions are available',
+      'job openings',
+      'current job opportunities',
+      'what jobs are there',
+      'display all jobs',
+      'show me job listings',
+      'what jobs can i apply for'
+    ];
+
+    // Course listing variations
+    const courseListingQueries = [
+      'list all courses',
+      'what all courses',
+      'show courses',
+      'available courses',
+      'what courses do you have',
+      'tell me about the courses',
+      'can you show me the courses',
+      'what courses are available',
+      'course offerings',
+      'current courses',
+      'what courses are there',
+      'display all courses',
+      'show me course listings',
+      'what can i learn here'
+    ];
+
+    // Check for job listing requests
+    if (jobListingQueries.some(query => lowerMessage.includes(query))) {
+      const jobs = await Job.find({}, 'jobTitle companyName jobLocation employmentType minPrice maxPrice salaryType');
+      if (jobs.length > 0) {
+        const jobList = jobs.map(job => 
+          `• ${job.jobTitle}\n    📍 Company: ${job.companyName}\n    📌 Location: ${job.jobLocation}\n    💼 Type: ${job.employmentType}\n    💰 Salary: $${job.minPrice}-${job.maxPrice} ${job.salaryType}`
+        ).join('\n\n');
+        return res.json({
+          reply: `Here are all available job opportunities:\n\n${jobList}\n\nWould you like specific details about any of these positions?`
+        });
+      } else {
+        return res.json({
+          reply: "Currently there are no job listings available. Please check back later for new opportunities."
+        });
+      }
+    }
+
+    // Check for course listing requests
+    if (courseListingQueries.some(query => lowerMessage.includes(query))) {
+      const courses = await Course.find({}, 'courseName courseTutor courseDifficulty paymentFee');
+      if (courses.length > 0) {
+        const courseList = courses.map(course => 
+          `• ${course.courseName}\n  👨‍🏫 Tutor: ${course.courseTutor}\n  📚 Level: ${course.courseDifficulty}\n  💰 Fee: $${course.paymentFee}`
+        ).join('\n\n');
+        return res.json({
+          reply: `Here are all available courses:\n\n${courseList}\n\nWould you like to know more details about any specific course?`
+        });
+      } else {
+        return res.json({
+          reply: "Currently there are no courses available. Please check back later for new course offerings."
+        });
+      }
+    }
+
+    // For other queries, use the existing keyword-based approach
+    const courseKeywords = ['course', 'courses', 'study', 'learn', 'training', 'tutor', 'fee', 'difficulty'];
+    const jobKeywords = ['job', 'jobs', 'work', 'position', 'salary', 'company', 'employment', 'career'];
+
+    const isCourseRelated = courseKeywords.some(keyword => lowerMessage.includes(keyword));
+    const isJobRelated = jobKeywords.some(keyword => lowerMessage.includes(keyword));
+
+    let contextData = '';
+
+    if (isCourseRelated) {
+      const courses = await Course.find({}, 'courseName courseTutor courseDifficulty paymentFee courseDescription');
+      if (courses.length > 0) {
+        contextData = `Available Courses:\n${courses.map(course => 
+          `- ${course.courseName} (Tutor: ${course.courseTutor}, Difficulty: ${course.courseDifficulty}, Fee: $${course.paymentFee})`
+        ).join('\n')}`;
+      }
+    }
+
+    if (isJobRelated) {
+      const jobs = await Job.find({}, 'jobTitle companyName jobLocation salaryType minPrice maxPrice employmentType');
+      if (jobs.length > 0) {
+        contextData = `Available Jobs:\n${jobs.map(job => 
+          `- ${job.jobTitle} at ${job.companyName} (Location: ${job.jobLocation}, Salary: $${job.minPrice}-${job.maxPrice} ${job.salaryType})`
+        ).join('\n')}`;
+      }
+    }
+
+    if (!isCourseRelated && !isJobRelated) {
+      return res.json({ 
+        reply: "I can only help you with information about courses and jobs available on our platform. Please ask me about courses, jobs, or related topics." 
+      });
+    }
+
+    // Use Gemini for more complex queries
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const prompt = `
+      Context: ${contextData}
+      User Question: ${message}
+      Please provide a helpful and relevant response based on the above context.
+      Format the response with bullet points where appropriate.
+      Keep it concise and friendly.
+    `;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const reply = response.text();
+
+    res.json({ reply: reply.trim() });
+
+  } catch (error) {
+    console.error('Chatbot error:', error);
+    res.status(500).json({ 
+      reply: "I'm having trouble processing your request right now. Please try again later." 
+    });
+  }
+});
+
+// Add this new endpoint for company-specific jobs
+app.get('/company-jobs', async (req, res) => {
+  try {
+    const { companyId } = req.query;
+    
+    if (!companyId) {
+      return res.status(400).json({ message: 'Company ID is required' });
+    }
+
+    const now = new Date();
+    const jobs = await Job.find({
+      companyId: companyId,
+      status: 1  // Only return active jobs
+    }).sort({ expireDate: 1 });
+    
+    console.log(`Found ${jobs.length} active jobs for company ${companyId}`);
+    res.json(jobs);
+  } catch (error) {
+    console.error('Error fetching company jobs:', error);
+    res.status(500).json({ message: 'Error fetching jobs' });
+  }
+});
+
+
+
+
+app.get('/feedbacka', async (req, res) => {
+  try {
+    const feedback = await Feedback.find();
+    res.json(feedback);
+  } catch (error) {
+    console.error('Error fetching feedback:', error);
+    res.status(500).json({ message: 'Error fetching feedback' });
+  }
+});
+
+// Endpoint to fetch all applications
+app.get('/applicationsa', async (req, res) => {
+  try {
+    const applications = await Application.find();
+    res.json(applications);
+  } catch (error) {
+    console.error('Error fetching applications:', error);
+    res.status(500).json({ message: 'Error fetching applications' });
+  }
+});
+
+// Endpoint to fetch all jobs
+app.get('/jobsa', async (req, res) => {
+  try {
+    const jobs = await Job.find();
+    res.json(jobs);
+  } catch (error) {
+    console.error('Error fetching jobs:', error);
+    res.status(500).json({ message: 'Error fetching jobs' });
+  }
+});
+
+// Endpoint to fetch all courses
+app.get('/coursesa', async (req, res) => {
+  try {
+    const courses = await Course.find();
+    res.json(courses);
+  } catch (error) {
+    console.error('Error fetching courses:', error);
+    res.status(500).json({ message: 'Error fetching courses' });
+  }
+});
 
 app.listen(PORT, () => {
   console.log(`Server started at port number ${PORT}`);
+});
+
+// Add error handling middleware for multer
+app.use((error, req, res, next) => {
+  if (error instanceof multer.MulterError) {
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+        message: 'File is too large. Maximum size is 5MB'
+      });
+    }
+  }
+  next(error);
+});
+
+// Update job route
+app.put('/jobs/:id', upload.single('companyLogo'), async (req, res) => {
+  try {
+    const jobId = req.params.id;
+    const updateData = { ...req.body };
+    
+    if (req.file) {
+      updateData.companyLogo = `/uploads/${req.file.filename}`;
+    }
+
+    // Convert expiry date string to Date object and set status
+    if (updateData.expireDate) {
+      const newExpireDate = new Date(updateData.expireDate);
+      const now = new Date();
+
+      // Explicitly set the status based on the new expiry date
+      updateData.status = newExpireDate > now ? 1 : 0;
+      
+      console.log('Updating job with:', {
+        expireDate: newExpireDate,
+        currentTime: now,
+        newStatus: updateData.status
+      });
+    }
+
+    // Force update the status field
+    const updatedJob = await Job.findByIdAndUpdate(
+      jobId,
+      { 
+        $set: {
+          ...updateData,
+          status: updateData.status // Ensure status is explicitly set
+        }
+      },
+      { 
+        new: true,
+        runValidators: true
+      }
+    );
+
+    if (!updatedJob) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Job not found' 
+      });
+    }
+
+    // Double-check the status after update
+    const finalStatus = updatedJob.expireDate > new Date() ? 1 : 0;
+    if (updatedJob.status !== finalStatus) {
+      updatedJob.status = finalStatus;
+      await updatedJob.save();
+    }
+
+    console.log('Job updated successfully:', {
+      id: updatedJob._id,
+      expireDate: updatedJob.expireDate,
+      status: updatedJob.status
+    });
+
+    res.json({ 
+      success: true, 
+      message: 'Job updated successfully', 
+      job: updatedJob 
+    });
+  } catch (error) {
+    console.error('Error updating job:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error updating job', 
+      error: error.message 
+    });
+  }
 });

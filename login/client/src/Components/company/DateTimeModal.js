@@ -3,7 +3,10 @@ import Modal from 'react-modal';
 import axios from 'axios';
 import "./DateTimeModel.css"; // Import the CSS file
 
-const DateTimeModal = ({ isOpen, onRequestClose, application, onSuccess }) => {
+// Set the app element
+Modal.setAppElement('#root'); // Make sure your app's root element has an ID of 'root'
+
+const DateTimeModal = ({ isOpen, onRequestClose, applications, jobTitle, onScheduleSet }) => {
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
 
@@ -23,38 +26,49 @@ const DateTimeModal = ({ isOpen, onRequestClose, application, onSuccess }) => {
       return;
     }
 
-    // Combine the date and time into a single Date object
     const combinedDateTime = new Date(selectedDate);
     const [hours, minutes] = selectedTime.split(':');
     combinedDateTime.setHours(hours);
     combinedDateTime.setMinutes(minutes);
 
-    // Check if email and jobId are available in the application prop
-    if (!application || !application.email || !application.jobId) {
-      alert('Applicant email or jobId not found.');
-      return;
-    }
-
     try {
-      // Send email to the applicant with the interview details
-      const response = await axios.post(`${process.env.REACT_APP_API_URL}/send-interview-invite`, {
-        applicantEmail: application.email,  // Ensure this is the correct email
-        interviewDateTime: combinedDateTime,
-        jobId: application.jobId,  // Ensure jobId is passed
+      const emailPromises = applications.map(async (application) => {
+        const response = await axios.post(`${process.env.REACT_APP_API_URL}/send-interview-invite`, {
+          applicantEmail: application.email,
+          interviewDateTime: combinedDateTime,
+          jobId: application.jobId._id,
+        });
+
+        console.log('Response from server:', response);
       });
 
-      console.log('Response from server:', response);
+      await Promise.all(emailPromises);
 
-      if (response.status === 200) {
-        alert('Interview invite sent successfully!');
-        onSuccess(); // Notify success
-        onRequestClose(); // Close the modal
-      } else {
-        alert(`Failed to send interview invite: ${response.data.error || response.statusText}`);
-      }
+      alert('Interview invites sent successfully!');
+      onScheduleSet(jobTitle, combinedDateTime);
+      onRequestClose();
     } catch (error) {
       console.error('Failed to send interview invite:', error);
-      alert('Failed to send interview invite. Please try again later.');
+      alert('Failed to send interview invites. Please try again later.');
+    }
+  };
+
+  const customStyles = {
+    content: {
+      top: '50%',
+      left: '50%',
+      right: 'auto',
+      bottom: 'auto',
+      transform: 'translate(-50%, -50%)',
+      backgroundColor: 'white',
+      padding: '20px',
+      borderRadius: '8px',
+      maxWidth: '500px',
+      width: '90%'
+    },
+    overlay: {
+      backgroundColor: 'rgba(0, 0, 0, 0.75)',
+      zIndex: 1000
     }
   };
 
@@ -63,10 +77,11 @@ const DateTimeModal = ({ isOpen, onRequestClose, application, onSuccess }) => {
       isOpen={isOpen}
       onRequestClose={onRequestClose}
       contentLabel="Select Date and Time"
-      className="modal"
-      overlayClassName="overlay"
+      style={customStyles}
+      shouldCloseOnOverlayClick={true}
+      shouldCloseOnEsc={true}
     >
-      <h2>Select Date and Time for Interview</h2>
+      <h2>Select Date and Time for Interview - {jobTitle}</h2>
       <form onSubmit={handleSubmit}>
         <div>
           <label>Date:</label>

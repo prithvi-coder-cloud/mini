@@ -3,39 +3,56 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import logo from "../img/logo/job.jpg";
 import DateTimeModal from './DateTimeModal';
+import "./ApplicationDisplay.css";
 
 const ApplicationDisplay = () => {
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedApplication, setSelectedApplication] = useState(null); // Manage selected application here
+  const [selectedJobTitle, setSelectedJobTitle] = useState(null);
+  const [selectedApplications, setSelectedApplications] = useState([]);
+  const [interviewSchedules, setInterviewSchedules] = useState({});
   const navigate = useNavigate();
 
   useEffect(() => {
-    const user = sessionStorage.getItem('user');
-    const parsedUser = user ? JSON.parse(user) : null;
-    const companyId = parsedUser ? parsedUser._id : null;
-
-    if (!companyId) {
-      setError('Company ID not found.');
-      setLoading(false);
-      return;
-    }
-
     const fetchApplications = async () => {
       try {
+        const user = sessionStorage.getItem('user');
+        const parsedUser = user ? JSON.parse(user) : null;
+        const companyId = parsedUser?._id;
+
+        if (!companyId) {
+          setError('Company ID not found. Please log in again.');
+          setLoading(false);
+          return;
+        }
+
         const response = await axios.get(`${process.env.REACT_APP_API_URL}/applications`, {
-          params: { companyId },
+          params: { companyId: companyId.toString() }
         });
 
-        const filteredApplications = response.data.filter((application) =>
-          application.companyId._id === companyId
-        );
+        if (!response.data) {
+          setError('No data received from server');
+          setLoading(false);
+          return;
+        }
 
-        setApplications(filteredApplications);
+        // Group applications by job
+        const groupedApps = response.data.reduce((acc, app) => {
+          const jobTitle = app.jobId?.jobTitle || 'Unknown Job';
+          if (!acc[jobTitle]) {
+            acc[jobTitle] = [];
+          }
+          acc[jobTitle].push(app);
+          return acc;
+        }, {});
+
+        setApplications(response.data);
+        console.log('Grouped applications:', groupedApps);
       } catch (err) {
-        setError('Failed to load applications.');
+        console.error('Error fetching applications:', err);
+        setError(err.response?.data?.message || 'Failed to load applications.');
       } finally {
         setLoading(false);
       }
@@ -44,76 +61,170 @@ const ApplicationDisplay = () => {
     fetchApplications();
   }, []);
 
-  const handleAccept = (application) => {
-    setSelectedApplication(application); // Set the selected application
-    setIsModalOpen(true);  // Open the modal
+  const groupByJobTitle = (applications) => {
+    return applications.reduce((acc, application) => {
+      const jobTitle = application.jobId?.jobTitle || 'Unknown Job';
+      if (!acc[jobTitle]) {
+        acc[jobTitle] = [];
+      }
+      acc[jobTitle].push(application);
+      return acc;
+    }, {});
+  };
+
+  const handleSchedule = (jobTitle, applicants) => {
+    setSelectedJobTitle(jobTitle);
+    setSelectedApplications(applicants);
+    setIsModalOpen(true);
+  };
+
+  const handleReject = async (applicationId) => {
+    try {
+      await axios.delete(`${process.env.REACT_APP_API_URL}/applications/${applicationId}`);
+      setApplications(applications.filter(app => app._id !== applicationId));
+    } catch (err) {
+      console.error('Failed to reject application:', err);
+      alert('Failed to reject application. Please try again later.');
+    }
+  };
+
+  const handleAddTest = (jobTitle, applicants) => {
+    const emails = applicants.map((applicant) => applicant.email);
+    navigate('/addtest', { state: { jobTitle, emails } });
   };
 
   const handleModalClose = () => {
-    setIsModalOpen(false);  // Close the modal
+    setIsModalOpen(false);
   };
 
-  if (loading) {
-    return <div>Loading applications...</div>;
-  }
+  const handleScheduleSet = (jobTitle, dateTime) => {
+    setInterviewSchedules(prevSchedules => ({
+      ...prevSchedules,
+      [jobTitle]: dateTime
+    }));
+  };
 
-  if (error) {
-    return <div>{error}</div>;
-  }
+  if (loading) return <div className="loading">Loading applications...</div>;
+  if (error) return <div className="error">{error}</div>;
+
+  const groupedApplications = groupByJobTitle(applications);
 
   return (
     <div>
-      <header className="header">
+      <header className='header'>
         <img src={logo} alt="Logo" className="logo" />
         <nav>
           <ul>
-            <li onClick={() => navigate('/companyhome')} className="nav-link">Back</li>
+            <li onClick={() => navigate('/companyhome')}>
+              <span className='course-nav-link'>Back</span>
+            </li>
           </ul>
         </nav>
       </header>
-      <h2>Applications for Your Company</h2>
-      {applications.length === 0 ? (
-        <p>No applications available.</p>
-      ) : (
-        <table border="1" style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr>
-              <th>Job Title</th>
-              <th>First Name</th>
-              <th>Middle Name</th>
-              <th>Last Name</th>
-              <th>Email</th>
-              <th>Phone</th>
-              <th>LinkedIn</th>
-              <th>Resume</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {applications.map((application) => (
-              <tr key={application._id}>
-                <td>{application.jobTitle}</td>
-                <td>{application.firstName}</td>
-                <td>{application.middleName}</td>
-                <td>{application.lastName}</td>
-                <td>{application.email}</td>
-                <td>{application.phone}</td>
-                <td>{application.linkedInProfile}</td>
-                <td>
-                  <a href={application.resume} target="_blank" rel="noopener noreferrer">
-                    View Resume
-                  </a>
-                </td>
-                <td>
-                  <button onClick={() => handleAccept(application)}>Accept</button>
-                  <button>Reject</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+
+      <div className="applications-container">
+          <h2>Job Applications</h2>
+
+        <div className="applications-content">
+          {Object.keys(groupedApplications).length === 0 ? (
+            <div className="no-applications">
+              <h3>No applications found</h3>
+            </div>
+          ) : (
+            Object.keys(groupedApplications).map((jobTitle) => (
+              <div key={jobTitle} className="job-applications">
+                <h3>{jobTitle}</h3>
+                <div className="button-container">
+                  <button 
+                    className="schedule-button" 
+                    onClick={() => handleSchedule(jobTitle, groupedApplications[jobTitle])}
+                  >
+                    Schedule Interview
+                  </button>
+                  <button 
+                    className="addtest-button" 
+                    onClick={() => handleAddTest(jobTitle, groupedApplications[jobTitle])}
+                  >
+                    Add Test
+                  </button>
+                  {interviewSchedules[jobTitle] && (
+                    <div className="interview-schedule">
+                      Interview Scheduled: {new Date(interviewSchedules[jobTitle]).toLocaleString()}
+                    </div>
+                  )}
+                </div>
+
+                <table className="applications-table">
+                  <thead>
+                    <tr>
+                      <th>First Name</th>
+                      <th>Middle Name</th>
+                      <th>Last Name</th>
+                      <th>Email</th>
+                      <th>Phone</th>
+                      <th>LinkedIn</th>
+                      <th>Resume</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {groupedApplications[jobTitle].map((application) => (
+                      <tr key={application._id}>
+                        <td>{application.firstName || 'N/A'}</td>
+                        <td>{application.middleName || 'N/A'}</td>
+                        <td>{application.lastName || 'N/A'}</td>
+                        <td>{application.email || 'N/A'}</td>
+                        <td>{application.phone || 'N/A'}</td>
+                        <td>
+                          {application.linkedInProfile ? (
+                            <a href={application.linkedInProfile} target="_blank" rel="noopener noreferrer">
+                              View Profile
+                            </a>
+                          ) : (
+                            'N/A'
+                          )}
+                        </td>
+                        <td>
+                          {application.resume ? (
+                            <a 
+                              href={`${process.env.REACT_APP_API_URL}/${application.resume}`} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                            >
+                              View Resume
+                            </a>
+                          ) : (
+                            'N/A'
+                          )}
+                        </td>
+                        <td>
+                          <button 
+                            className="reject-button"
+                            onClick={() => handleReject(application._id)}
+                          >
+                            Reject
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+      
+      {isModalOpen && (
+        <DateTimeModal 
+          isOpen={isModalOpen} 
+          onRequestClose={handleModalClose} 
+          jobTitle={selectedJobTitle} 
+          applications={selectedApplications} 
+          onScheduleSet={handleScheduleSet} 
+          onhandleAddTest={handleAddTest} 
+        />
       )}
-      {isModalOpen && <DateTimeModal isOpen={isModalOpen} onRequestClose={handleModalClose} application={selectedApplication} />}
     </div>
   );
 };

@@ -33,15 +33,14 @@ const ChangePassword = () => {
     navigate('/login'); // Redirect to login page
   }
   return (
-    <div className="container">
-      <header className="header">
-        <div className="header-left">
-          <img src={logo} alt="Logo" className="logo" />
-          <h1>Job Posting</h1>
-        </div>
-                      <a onClick={logout} className='nav-link' style={{ cursor: 'pointer' }}>Logout</a>
-
-            
+    <div className="change-password-container">
+      <header className="changepassword-header">
+        <img src={logo} alt="Logo" className="logo" />
+        <nav>
+          <ul>
+            <li onClick={() => navigate('/login')} className="changepassword-nav-link">Back to login</li>
+          </ul>
+        </nav>
       </header>
       <div className="form-c">
         <h2>Change Password</h2>

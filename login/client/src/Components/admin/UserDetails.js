@@ -64,7 +64,9 @@ const UserDetails = () => {
         </nav>
       </header>
       <div className="user-details-container">
-        <h1>User Management</h1>
+<br></br><br></br><br></br>
+<br></br>
+
 
         {/* Active Users Section */}
         <h2>Active Users</h2>

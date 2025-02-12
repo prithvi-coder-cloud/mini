@@ -8,24 +8,16 @@ const newSchema = new mongoose.Schema({
   email: {
     type: String,
     required: true,
-    unique: true, // Ensure email is unique
+    unique: true,
   },
   password: {
     type: String,
     required: true,
   },
-  dob: {
-    type: Date, // Date of birth
-    default: null, // Default value is null, making it optional
-  },
-  linkedIn: {
-    type: String, // LinkedIn profile link
-    default: null, // Default value is null, making it optional
-  },
   role: {
     type: String,
-    enum: ['user', 'company', 'course provider'], // Updated roles
-    default: 'user', // Default role
+    enum: ['user', 'company', 'course provider'],
+    default: 'user',
   },
   resetCode: {
     type: String,
@@ -36,12 +28,12 @@ const newSchema = new mongoose.Schema({
     default: Date.now,
   },
   status: {
-    type: Number, // 0 for disabled, 1 for enabled
-    default: 1, // Default status is enabled
+    type: Number,
+    default: 1,
   },
   deletionStatus: {
-    type: Number, // 0 for not deleted, 1 for deleted
-    default: 0, // Default is not deleted
+    type: Number,
+    default: 0,
   },
 });
 

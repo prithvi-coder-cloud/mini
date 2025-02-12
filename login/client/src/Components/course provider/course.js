@@ -14,6 +14,15 @@ const Course = () => {
 
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
+  useEffect(() => {
+    const user = JSON.parse(sessionStorage.getItem('user'));
+    if (user) {
+      console.log('Logged-in user data:', user);
+    } else {
+      console.log('No user is logged in.');
+    }
+  }, []);
+
   // Set up the image slideshow effect with useEffect
   useEffect(() => {
     const interval = setInterval(() => {
@@ -37,6 +46,8 @@ const Course = () => {
         <nav>
           <ul>
           <li><NavLink to="/postcourse" className='nav-link' id="post-course-link">Post course</NavLink></li>
+          <li><NavLink to="/coursedisplay" className='nav-link'>Course Display</NavLink></li>
+
             <li><NavLink to="/changepassword" className='nav-link'>Change Password</NavLink></li>
             <li onClick={logout}>
               <a className='nav-link' style={{ cursor: 'pointer' }}>Logout</a>

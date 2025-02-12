@@ -1,13 +1,13 @@
 import React from 'react';
 import Button from './Button';
 import InputField from '../InputField';
-import './Salary.css'; // Make sure to import the CSS for styling
+import './Salary.css';
 
 const Salary = ({ handleChange, handleClick }) => {
   return (
     <div>
       <h4>Salary</h4>
-      <div>
+      <div className='salary-type'>
         <Button onClickHandler={handleClick} value="hourly" title="Hourly" />
         <Button onClickHandler={handleClick} value="monthly" title="Monthly" />
         <Button onClickHandler={handleClick} value="yearly" title="Yearly" />

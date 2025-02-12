@@ -38,12 +38,24 @@ import GenerateQuestions from './Components/GenerateQuestions';
 import CourseList1 from './Components/CourseList1';
 import Certificate from './Components/Certificate';
 import Payment from './Components/Payment';
-import Profile from './Components/Profile';
-import Profile1 from './Components/Profile1';
+// import Profile from './Components/Profile';
+// import Profile1 from './Components/Profile1';
 import { QuestionProvider } from './Components/course provider/QuestionContext';
 import DateTimeModal from './Components/company/DateTimeModal';
-
+import AddTest from './Components/company/AddTest';
+import TestDisplay from './Components/TestDisplay';
+import JobTitles from './Components/JobTitle';
 import ApplicationDisplay from './Components/company/ApplicationiDisplay';
+import HighScorers from './Components/company/HighScorers';
+import ProfilePage from './Components/ProfilePage';
+import Feedback from './Components/Feedback';
+import Review from './Components/admin/Review';
+import SelectedCandidates from './Components/company/SelectedCandidates';
+import CourseDisplay from './Components/course provider/CourseDisplay';
+import ApplicationView from './Components/ApplicationView';
+import Chatbot from './Components/ChatBot';
+import Status from './Components/admin/Status';
+
 function App() {
   return (
     <QuestionProvider>
@@ -83,10 +95,23 @@ function App() {
         <Route path="/courselist1" element={<CourseList1/>}/>
         <Route path="/certificate/:id" element={<Certificate />} />
         <Route path="/payment" element={<Payment/>}/>
-        <Route path="/profile" element={<Profile/>}/>
-        <Route path="/profile1" element={<Profile1/>}/>
+        {/* <Route path="/profile" element={<Profile/>}/>
+        <Route path="/profile1" element={<Profile1/>}/> */}
         <Route path="/applicationd" element={<ApplicationDisplay />} />
         <Route path="/datetime" element={<DateTimeModal />} />
+        <Route path="/addtest" element={<AddTest />} />
+        <Route path="/test/:jobTitle" element={<TestDisplay />} />
+        <Route path="/jobtitles" element={<JobTitles />} />
+        <Route path="/highscorers" element={<HighScorers />} />
+        <Route path="/profilepage" element={<ProfilePage />} />
+        <Route path="/feedback" element={<Feedback />} />
+        <Route path="/review" element={<Review />} />
+        <Route path="/selectedcandidate" element={<SelectedCandidates />} />
+        <Route path="/coursedisplay" element={<CourseDisplay />} />
+        <Route path="/applicationview" element={<ApplicationView />} />
+        <Route path="/Chatbot" element={<Chatbot />}/>
+        <Route path="/status" element={<Status />} />
+        
       </Routes>
     </QuestionProvider>
   );

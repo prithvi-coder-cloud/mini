@@ -1,0 +1,94 @@
+.profile-container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: #f9f9f9;
+    padding-top: 100px;
+  }
+  
+  .profile-container h2 {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  
+  .form-group {
+    margin-bottom: 20px;
+    position: relative;
+  }
+  
+  .form-group label {
+    display: block;
+    margin-bottom: 5px;
+  }
+  
+  .form-group input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-sizing: border-box;
+    transition: border-color 0.3s ease;
+  }
+  
+  .form-group input:focus {
+    border-color: #007bff;
+    outline: none;
+  }
+  
+  .form-group input.valid {
+    border-color: #28a745;
+  }
+  
+  .form-group input.invalid {
+    border-color: #dc3545;
+  }
+  
+  .error-message {
+    color: #dc3545;
+    font-size: 0.8rem;
+    margin-top: 5px;
+    display: block;
+  }
+  
+  .hint {
+    color: #666;
+    font-size: 0.8rem;
+    margin-top: 5px;
+    display: block;
+  }
+  
+  button {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  
+  button:hover {
+    background-color: #0056b3;
+  }
+  
+  .success-message {
+    color: green;
+    text-align: center;
+    margin-top: 10px;
+  }
+  
+  /* Add these styles to show validation state */
+  .form-group input:invalid,
+  .form-group select:invalid {
+    border-color: #dc3545;
+  }
+  
+  .form-group input:valid,
+  .form-group select:valid {
+    border-color: #28a745;
+  }
+  

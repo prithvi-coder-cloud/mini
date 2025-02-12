@@ -10,126 +10,136 @@ const ViewJobs = () => {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  const back = () => {
-    navigate('/companyhome');
-  };
-
   useEffect(() => {
-    // Get the companyId from sessionStorage
-    const companyId = sessionStorage.getItem('user'); 
-    console.log('Company ID:', companyId); // Debugging line to check if companyId is retrieved
-
-    if (!companyId) {
-      setError('Company not logged in.');
-      setLoading(false);
-      return;
-    }
-
     const fetchJobs = async () => {
       try {
-        // Fetch jobs that belong to the company using companyId as a query parameter
-        const response = await axios.get(`${process.env.REACT_APP_API_URL}/jobbs`, {
-          params: { companyId }, // Pass companyId to filter jobs by the company
-        });
-
-        console.log('Jobs response:', response.data); // Debugging line to check API response
-
-        // Assuming jobs are filtered by companyId on the backend, otherwise filter here
-        const filteredJobs = response.data.filter(job => job.companyId === companyId);
-        
-        // Set the jobs
-        setJobs(filteredJobs);
-      } catch (error) {
-        console.error('Error fetching job listings:', error);
-
-        // Log error details for debugging
-        if (error.response) {
-          // Server responded with a status other than 200
-          console.error('Response error:', error.response.data);
-        } else if (error.request) {
-          // Request was made but no response was received
-          console.error('Request error:', error.request);
-        } else {
-          // Something else happened in setting up the request
-          console.error('Error message:', error.message);
+        const user = JSON.parse(sessionStorage.getItem('user'));
+        if (!user || !user._id) {
+          setError('Please login first');
+          setLoading(false);
+          return;
         }
 
-        setError('Error fetching job listings');
-      } finally {
+        // Fetch all jobs for the company, including both active and expired
+        const response = await axios.get(`${process.env.REACT_APP_API_URL}/jobbs`, {
+          params: { companyId: user._id }
+        });
+        
+        console.log('Company jobs:', response.data);
+        setJobs(response.data);
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching jobs:', error);
+        setError('Failed to fetch jobs');
         setLoading(false);
       }
     };
 
     fetchJobs();
-  }, []); // Empty dependency array ensures this runs once on mount
+  }, []);
 
   const handleUpdate = (job) => {
-    navigate('/editjob', { state: { jobId: job._id } }); // Pass jobId instead of the whole job
+    navigate('/editjob', { 
+      state: { 
+        jobId: job._id,
+        jobData: job 
+      } 
+    });
   };
 
-  if (loading) return <div>Loading...</div>;
-  if (error) return <div>{error}</div>;
+  const getStatusBadgeClass = (status) => {
+    return status === 1 ? 'status-badge active' : 'status-badge expired';
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
 
   return (
-    <div>
-      <header className='header'>
+    <div className="view-jobs-container">
+      <header className="header">
         <img src={logo} alt="Logo" className="logo" />
         <nav>
           <ul>
-            <li onClick={back}>
-              <a className='nav-link' style={{ cursor: 'pointer' }}>Back</a>
+            <li onClick={() => navigate('/companyhome')}>
+              <span className="course-nav-link">Back</span>
             </li>
           </ul>
         </nav>
       </header>
+
       <div className="table-container">
-        <h2>Job Listings</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Company Name</th>
-              <th>Company Logo</th>
-              <th>Job Title</th>
-              <th>Min Salary</th>
-              <th>Max Salary</th>
-              <th>Salary Type</th>
-              <th>Job Location</th>
-              <th>Posting Date</th>
-              <th>Experience Level</th>
-              <th>Employment Type</th>
-              <th>Description</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {jobs.map((job) => (
-              <tr key={job._id}>
-                <td>{job.companyName}</td>
-                <td>
-                  {job.companyLogo && (
-                    <img
-                      src={`${process.env.REACT_APP_API_URL}${job.companyLogo}`} // Ensure this URL is correct
-                      alt={`${job.companyName} Logo`}
-                      style={{ width: '50px', height: '50px' }} // Adjust size as needed
-                    />
-                  )}
-                </td>
-                <td>{job.jobTitle}</td>
-                <td>{job.minPrice}</td>
-                <td>{job.maxPrice}</td>
-                <td>{job.salaryType}</td>
-                <td>{job.jobLocation}</td>
-                <td>{new Date(job.postingDate).toLocaleDateString()}</td>
-                <td>{job.experienceLevel}</td>
-                <td>{job.employmentType}</td>
-                <td>{job.description}</td>
-                <td>
-                  <button onClick={() => handleUpdate(job)}>Update</button>
-                </td>
+        <h2>Posted Jobs</h2>
+
+        {loading ? (
+          <div className="loading">Loading jobs...</div>
+        ) : error ? (
+          <div className="error">{error}</div>
+        ) : jobs.length === 0 ? (
+          <div className="no-jobs">No jobs posted yet</div>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Job Title</th>
+                <th>Company Logo</th>
+                <th>Salary Range</th>
+                <th>Location</th>
+                <th>Experience</th>
+                <th>Type</th>
+                <th>Posted Date</th>
+                <th>Expiry Date</th>
+                <th>Status</th>
+                <th>Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {jobs.map((job) => (
+                <tr key={job._id}>
+                  <td>{job.jobTitle}</td>
+                  <td>
+                    <img
+                      src={job.companyLogo ? 
+                        job.companyLogo.startsWith('http') ? 
+                          job.companyLogo : 
+                          `${process.env.REACT_APP_API_URL}${job.companyLogo}`
+                        : logo}
+                      alt="Company Logo"
+                      className="company-logo-small"
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = logo;
+                      }}
+                    />
+                  </td>
+                  <td>{`${job.minPrice} - ${job.maxPrice} (${job.salaryType})`}</td>
+                  <td>{job.jobLocation}</td>
+                  <td>{job.experienceLevel}</td>
+                  <td>{job.employmentType}</td>
+                  <td>{formatDate(job.postingDate)}</td>
+                  <td>{formatDate(job.expireDate)}</td>
+                  <td>
+                    <span className={getStatusBadgeClass(job.status)}>
+                      {job.status === 1 ? 'Active' : 'Expired'}
+                    </span>
+                  </td>
+                  <td>
+                    <button 
+                      className="update-button"
+                      onClick={() => handleUpdate(job)}
+                    >
+                      Update
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

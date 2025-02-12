@@ -1,114 +1,146 @@
 import React from 'react';
-import './Home.css'; // Import the CSS file
-import '@fortawesome/fontawesome-free/css/all.min.css'; // Import FontAwesome for the icons
+import './Home.css';
+import '@fortawesome/fontawesome-free/css/all.min.css';
 import { useLocation } from 'react-router-dom';
 import Header from './Header';
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"></link>
+
 const Home = () => {
   const location = useLocation();
   
   return (
     <>
       <div>
-      <Header/>
+        <Header/>
 
-        <section>
-          <div className="background">
-            <h1>Job Board</h1>
-            <h4>The Comprehensive Job Board Platform is designed to facilitate
-seamless interactions between job seekers, employers, course providers, and
-administrators. This platform offers a holistic solution for job listings, user
-authentication, profile management, job applications, course enrollment, and feedback
-mechanisms. </h4>
-            {/* <h1>Hello {location.state.id} welcome to the Home</h1> */}
-            {/* You can add other content here */}
+        {/* Hero Section */}
+        <section className="hero-section">
+          <div className="hero-content">
+            <h1>Find Your Dream Career Path</h1>
+            <div className="hero-content-bg">
+            <h4>The Comprehensive Job Board Platform connects talented individuals with their ideal opportunities. 
+              Explore jobs, enhance your skills with courses, and take the next step in your career journey.</h4>
+            <div className="hero-stats">
+              <div className="stat-item">
+                <span className="stat-number">5000+</span>
+                <span className="stat-label">Active Jobs</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-number">2000+</span>
+                <span className="stat-label">Companies</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-number">150+</span>
+                <span className="stat-label">Courses</span>
+              </div>
+            </div>
+            </div>
           </div>
         </section>
-        <section class="how-it-works-section">
-        <div class="how-it-works">
-            <h2 style={{fontFamily:'sans-serif', fontSize:'100px',color:'grey'}}>How it works</h2>
-            <div class="steps">
-                <div class="step">
-                    <div class="icon">
-                        <i class="fas fa-search"></i>
-                    </div>
-                    <h3>1. Search a job</h3>
-                    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
+
+        {/* How It Works Section */}
+        <section className="how-it-works-section">
+          <div className="section-container">
+            <h2>How It Works</h2>
+            <div className="steps">
+              <div className="step">
+                <div className="icon">
+                  <i className="fas fa-search"></i>
                 </div>
-                <div class="step">
-                    <div class="icon">
-                        <i class="fas fa-file-alt"></i>
-                    </div>
-                    <h3>2. Apply for job</h3>
-                    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
-                </div>
-                <div class="step">
-                    <div class="icon">
-                        <i class="fas fa-briefcase"></i>
-                    </div>
-                    <h3>3. Get your job</h3>
-                    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
-                </div>
-            </div>
-        </div>
-    </section>
-        <section>
-          <footer className="footer">
-            <div className="container">
-              <div className="row">
-                <div className="footer-col">
-                  <h4>About Us</h4>
-                  <p>Heaven fruitful doesn't cover lesser days appear creeping seasons so behold.</p>
-                </div>
-                <div className="footer-col">
-                  <h4>Contact Info</h4>
-                  <ul>
-                    <li><span>Address:</span> Your address goes here, your demo address.</li>
-                    <li><span>Phone:</span> +8880 44338899</li>
-                    <li><span>Email:</span> info@colorlib.com</li>
-                  </ul>
-                </div>
-                <div className="footer-col">
-                  <h4>Important Link</h4>
-                  <ul>
-                    <li>View Project</li>
-                    <li>Contact Us</li>
-                    <li>Properties</li>
-                    <li>Support</li>
-                  </ul>
-                </div>
-                <div className="footer-col">
-                  <h4>Newsletter</h4>
-                  <p>Heaven fruitful doesn't over lesser in days. Appear creeping.</p>
-                  <div className="subscribe-form">
-                    <input type="email" placeholder="Enter your email" />
-                    <button type="submit"><i className="fas fa-paper-plane"></i></button>
-                  </div>
-                </div>
+                <h3>Search Jobs</h3>
+                <p>Browse through thousands of job listings tailored to your skills and preferences.</p>
               </div>
-              <div className="footer-bottom">
-                <div className="footer-logo">
-                  <img src="./img/logo/logo.png" alt="Job Finder" />
-                  <p>Get your dream job</p>
+              <div className="step">
+                <div className="icon">
+                  <i className="fas fa-graduation-cap"></i>
                 </div>
-                <div className="footer-stats">
-                  <div>
-                    <h3>5000+</h3>
-                    <p>Talented Hunter</p>
-                  </div>
-                  <div>
-                    <h3>451</h3>
-                    <p>Talented Hunter</p>
-                  </div>
-                  <div>
-                    <h3>568</h3>
-                    <p>Talented Hunter</p>
-                  </div>
+                <h3>Learn Skills</h3>
+                <p>Enhance your qualifications with our curated selection of professional courses.</p>
+              </div>
+              <div className="step">
+                <div className="icon">
+                  <i className="fas fa-briefcase"></i>
                 </div>
+                <h3>Get Hired</h3>
+                <p>Apply to your dream jobs and start your journey towards success.</p>
               </div>
             </div>
-          </footer>
+          </div>
         </section>
+
+        {/* Features Section */}
+        <section className="features-section">
+          <div className="section-container">
+            <h2>Why Choose Us</h2>
+            <div className="features-grid">
+              <div className="feature-card">
+                <i className="fas fa-bolt"></i>
+                <h3>Quick Applications</h3>
+                <p>Apply to multiple jobs with just a few clicks using your saved profile.</p>
+              </div>
+              <div className="feature-card">
+                <i className="fas fa-certificate"></i>
+                <h3>Verified Employers</h3>
+                <p>All companies are thoroughly vetted to ensure legitimate opportunities.</p>
+              </div>
+              <div className="feature-card">
+                <i className="fas fa-book-reader"></i>
+                <h3>Quality Courses</h3>
+                <p>Access high-quality learning materials from industry experts.</p>
+              </div>
+              <div className="feature-card">
+                <i className="fas fa-chart-line"></i>
+                <h3>Career Growth</h3>
+                <p>Find opportunities that match your career goals and aspirations.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Footer */}
+        <footer className="footer">
+          <div className="footer-content">
+            <div className="footer-grid">
+              <div className="footer-col">
+                <h4>About JobBoard</h4>
+                <p>Connecting talent with opportunity through innovative job matching and skill development. We help professionals find their dream careers.</p>
+                <div className="social-links">
+                  <a href="#"><i className="fab fa-facebook-f"></i></a>
+                  <a href="#"><i className="fab fa-linkedin-in"></i></a>
+                  <a href="#"><i className="fab fa-instagram"></i></a>
+                </div>
+              </div>
+              
+              <div className="footer-col">
+                <h4>Contact Us</h4>
+                <div className="contact-info">
+                  <div className="contact-item">
+                    <i className="fas fa-map-marker-alt"></i>
+                    <p>123 Career Street,<br />Tech Valley, NY 12345</p>
+                  </div>
+                  <div className="contact-item">
+                    <i className="fas fa-phone-alt"></i>
+                    <p>+1 234 567 8900</p>
+                  </div>
+                  <div className="contact-item">
+                    <i className="fas fa-envelope"></i>
+                    <p>contact@jobboard.com</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="footer-col">
+                <h4>Newsletter</h4>
+                <p>Subscribe to receive job updates and career tips.</p>
+                <div className="subscribe-form">                  
+                </div>
+              </div>
+            </div>
+
+            <div className="footer-bottom">
+              <p>&copy; 2024 JobBoard. All rights reserved.</p>
+            </div>
+          </div>
+        </footer>
       </div>
     </>
   );

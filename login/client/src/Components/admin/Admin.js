@@ -21,6 +21,10 @@ const Admin = () => {
             <li><NavLink to="/UserDetails" id='us1'>User Management</NavLink></li>
             <li><NavLink to="/AddCompany" id='us2'>Add Company</NavLink></li> {/* New NavLink */}
             <li><NavLink to="/AddCourseProvider">Add Course Provider</NavLink></li>
+            <li><NavLink to="/status">Status</NavLink></li>
+
+            <li><NavLink to="/review">Reviews</NavLink></li>
+
             <li onClick={logout}><a>Logout</a></li>
           </ul>
         </nav>

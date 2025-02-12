@@ -3,3 +3,6 @@ AppData/Local/History/
 AppData/Local/Microsoft/Windows/INetCache/Content.IE5/
 AppData/Local/Microsoft/Windows/Temporary Internet Files/
 AppData/Local/Temporary Internet Files/
+.env
+node_modules/
+uploads/

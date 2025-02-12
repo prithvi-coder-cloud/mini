@@ -1,0 +1,129 @@
+/* General Layout */
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background-color: #f4f4f9;
+}
+
+.job-titles-page {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Page Container */
+.page-container {
+  padding-top: 100px; /* Space to prevent overlapping with the header */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: calc(100vh - 100px); /* Adjust to ensure full height below the header */
+  background-color: #f9f9f9;
+}
+
+.job-titles-container {
+  width: 80%;
+  max-width: 900px;
+  padding: 20px;
+  background-color: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+/* Title */
+h2 {
+  font-size: 28px;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 20px;
+}
+
+/* Job Titles List */
+.job-titles-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 25px;
+  padding: 20px;
+}
+
+/* Job Item */
+.job-item-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+  margin: 15px;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  background-color: #ffffff;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  min-width: 280px;
+}
+
+.job-item-container:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Logo */
+.job-logo {
+  width: 120px;  /* Fixed width */
+  height: 120px; /* Fixed height */
+  object-fit: contain;
+  margin: 15px 0;
+  padding: 10px;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Job Details */
+.job-title-box,
+.company-name-box {
+  width: 100%;
+  padding: 10px;
+  margin: 5px 0;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+}
+
+.job-title-box p,
+.company-name-box p {
+  margin: 0;
+  font-size: 15px;
+  color: #333;
+}
+
+.job-title-box strong,
+.company-name-box strong {
+  color: #2c3e50;
+  margin-right: 5px;
+}
+
+/* Button */
+.quiz-button-box {
+  margin-top: 10px;
+  width: 100%;
+}
+
+.job-title-button {
+  background-color: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.job-title-button:hover {
+  background-color: #0056b3;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.job-title-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}

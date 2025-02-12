@@ -1,94 +1,130 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import './CourseList.css'; // Updated CSS file
-import logo from './img/logo/job.jpg'; // Path to your logo image
+import './CourseList.css';
+import logo from './img/logo/job.jpg';
 import { useNavigate } from 'react-router-dom';
-import { FaSearch } from 'react-icons/fa'; // Import Font Awesome search icon
+import { FaSearch } from 'react-icons/fa';
+import Home1 from './Home1';
 
-const CourseList = () => {
+const CourseList1 = () => {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [searchQuery, setSearchQuery] = useState(''); // Search query state
+  const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchCourses = async () => {
-      try {
-        const response = await axios.get(`${process.env.REACT_APP_API_URL}/coursesm`);
-        setCourses(response.data);
-      } catch (error) {
-        console.error('Error fetching courses:', error);
-        setError('Failed to fetch courses.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchCourses();
   }, []);
+
+  const fetchCourses = async () => {
+    try {
+      const email = sessionStorage.getItem('email');
+      if (!email) {
+        throw new Error('User not logged in');
+      }
+
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/coursesm`, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        params: { email },
+        withCredentials: true
+      });
+
+      if (response.data) {
+        console.log('Fetched Courses:', response.data);
+        setCourses(response.data);
+      } else {
+        throw new Error('No data received from server');
+      }
+    } catch (error) {
+      console.error('Error fetching courses:', error);
+      setError(error.response?.data?.message || 'Failed to fetch courses. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const viewCourseDetails = (course) => {
     navigate(`/course/${course._id}`, { state: { course } });
   };
 
-  // Filter courses based on search query
   const filteredCourses = courses.filter(course => 
-    course.courseName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    course.courseDescription.toLowerCase().includes(searchQuery.toLowerCase())
+    course.courseName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    course.courseDescription?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   if (loading) return <div className="course-loading">Loading courses...</div>;
-  if (error) return <div className="course-error">{error}</div>;
+  if (error) return (
+    <div className="course-error">
+      <p>{error}</p>
+      <button onClick={fetchCourses}>Retry</button>
+    </div>
+  );
 
   return (
-    <div className="course-dashboard-container">
-      <header className="course-header">
-        <img src={logo} alt="Logo" className="logo" />
-        <nav>
-          <ul>
-            <li onClick={() => navigate('/')} className="course-nav-link">Back</li>
-          </ul>
-        </nav>
-      </header>
-      <div className="course-content-container">
-        <div className="course-main-content">
-          <div className="course-search-container">
-            <div className="course-search-input-container">
-              <input
-                type="text"
-                placeholder="Search courses by name or description..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="course-search-input"
-              />
-            </div>
-            <div className="course-search-icon-container">
-              <FaSearch className="course-search-icon" />
-            </div>
+    <div>
+      <Home1 showContent={false} />
+      <div className="course-content">
+        <div className="search-container">
+          <div className="search-input-wrapper">
+            <input
+              type="text"
+              placeholder="Search courses..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="search-input"
+            />
+            <FaSearch className="search-icon" />
           </div>
-          <div className="course-listing-container">
-            <h1>Available Courses</h1>
-            <div className="course-listing">
-              {filteredCourses.length > 0 ? (
-                filteredCourses.map((course) => (
-                  <div className="course-card" key={course._id}>
-                    <img src={`${process.env.REACT_APP_API_URL}${course.courseLogo}`} alt={`${course.courseName} Logo`} className="course-logo" />
-                    <div className="course-details">
-                      <h2 className="course-title">{course.courseName}</h2>
-                      <p><strong>Difficulty:</strong> {course.courseDifficulty}</p>
-                      <p><strong>Fee:</strong> ${course.paymentFee}</p>
-                      <p>{course.courseDescription}</p>
-                      <div className="course-button-container">
-                        <button className="course-button" onClick={() => viewCourseDetails(course)}>Enroll for free</button>
-                      </div>
-                    </div>
+        </div>
+
+        <div className="courses-section">
+          <h1>Available Courses</h1>
+          <div className="courses-grid">
+            {filteredCourses.length > 0 ? (
+              filteredCourses.map((course) => (
+                <div className="course-card" key={course._id}>
+                  <img 
+                    src={course.courseLogo ? 
+                      course.courseLogo.startsWith('/') 
+                        ? `${process.env.REACT_APP_API_URL}${course.courseLogo}`
+                        : `${process.env.REACT_APP_API_URL}/uploads/${course.courseLogo}`
+                      : logo
+                    }
+                    alt={`${course.courseName} Logo`} 
+                    className="course-logo"
+                    onError={(e) => {
+                      console.log('Failed to load image:', e.target.src); // Debug log
+                      e.target.onerror = null;
+                      e.target.src = logo;
+                    }}
+                  />
+                  <div className="course-details">
+                    <h2 className="course-title">{course.courseName}</h2>
+                    <p className="course-difficulty">
+                      <strong>Difficulty:</strong> {course.courseDifficulty}
+                    </p>
+                    <p className="course-fee">
+                      <strong>Fee:</strong> ${course.paymentFee}
+                    </p>
+                    <p className="course-description">{course.courseDescription}</p>
+                    <button 
+                      className="enroll-button" 
+                      onClick={() => viewCourseDetails(course)}
+                    >
+                      Enroll Now
+                    </button>
                   </div>
-                ))
-              ) : (
+                </div>
+              ))
+            ) : (
+              <div className="no-courses">
                 <p>No courses available.</p>
-              )}
-            </div>
+                <button onClick={fetchCourses}>Refresh</button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -96,4 +132,4 @@ const CourseList = () => {
   );
 };
 
-export default CourseList;
+export default CourseList1;

@@ -7,22 +7,23 @@ const Location = ({handleChange}) => {
       <h4>Location</h4>
       <div>
         <label className='sidebar-label-container'>
-            <input type='radio' name='List' value="" onChange={handleChange}/>
+            <input type='radio' name='test' value="" onChange={handleChange}/>
             <span className='checkmark'></span>All
         </label>
 
-        <InputField handleChange={handleChange} value="london" title="London" name="text"/>
-        <InputField handleChange={handleChange} value="seattle" title="Seattle" name="text"/>
-        <InputField handleChange={handleChange} value="haripad" title="Haripad" name="text"/>
-        <InputField handleChange={handleChange} value="boston" title="Boston" name="text"/>
-        <InputField handleChange={handleChange} value="brussels" title="Brussels" name="text"/>
-        <InputField handleChange={handleChange} value="san Francisco" title="San Francisco" name="text"/>
-
-
-
-
-
-
+        <InputField 
+          handleChange={handleChange} 
+          value="Kochi" 
+          title="Kochi" 
+          name="test"
+        />
+        <InputField 
+          handleChange={handleChange} 
+          value="Haripad" 
+          title="Haripad" 
+          name="test"
+        />
+        {/* You can keep other locations if needed */}
       </div>
     </div>
   )

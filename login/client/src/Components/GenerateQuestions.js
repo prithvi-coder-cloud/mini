@@ -72,7 +72,7 @@ const GenerateQuestions = () => {
         <img src={logo} alt="Logo" className="logo" />
         <nav>
           <ul>
-            <li onClick={() => navigate('/courselist')} className='nav-link'>Back</li>
+            <li onClick={() => navigate('/courselist')} className='course-nav-link'>Back</li>
           </ul>
         </nav>
       </header>
