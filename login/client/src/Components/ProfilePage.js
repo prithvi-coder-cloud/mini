@@ -45,6 +45,10 @@ const ProfilePage = () => {
   });
   const navigate = useNavigate();
 
+  // Add resume state
+  const [resume, setResume] = useState(null);
+  const [resumeError, setResumeError] = useState('');
+
   useEffect(() => {
     const email = sessionStorage.getItem("email");
     if (email) {
@@ -148,15 +152,34 @@ const ProfilePage = () => {
     }
   };
 
+  // Add this function to handle resume upload
+  const handleResumeChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.type === 'application/pdf') {
+        if (file.size <= 5 * 1024 * 1024) { // 5MB limit
+          setResume(file);
+          setResumeError('');
+        } else {
+          setResumeError('File size should be less than 5MB');
+        }
+      } else {
+        setResumeError('Please upload only PDF files');
+      }
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validate all fields
+
+    // Keep existing validation code
     let hasErrors = false;
     Object.keys(profile).forEach(field => {
-      const error = validateField(field, profile[field]);
-      if (error) hasErrors = true;
-      setErrors(prev => ({ ...prev, [field]: error }));
+      if (field !== 'resume') {
+        const error = validateField(field, profile[field]);
+        if (error) hasErrors = true;
+        setErrors(prev => ({ ...prev, [field]: error }));
+      }
     });
 
     if (hasErrors) {
@@ -165,34 +188,51 @@ const ProfilePage = () => {
     }
 
     try {
-      console.log('Submitting profile:', profile); // Debug log
+      const formData = new FormData();
+      
+      // Add all profile fields
+      formData.append('firstName', profile.firstName);
+      formData.append('lastName', profile.lastName);
+      formData.append('phoneNumber', profile.phoneNumber);
+      formData.append('email', profile.email);
+      formData.append('skills', profile.skills);
+      formData.append('linkedinProfile', profile.linkedinProfile);
+      formData.append('city', profile.city);
+      formData.append('state', profile.state);
+      if (profile.middleName) {
+        formData.append('middleName', profile.middleName);
+      }
+
+      // Add resume if selected
+      if (resume) {
+        formData.append('resume', resume);
+      }
+
+      // Log formData for debugging
+      for (let pair of formData.entries()) {
+        console.log(pair[0] + ': ' + pair[1]);
+      }
 
       const response = await axios.post(
         `${process.env.REACT_APP_API_URL}/profile`,
-        profile,
-        { 
-          withCredentials: true,
+        formData,
+        {
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'multipart/form-data'
           }
         }
       );
-      
-      console.log('Server response:', response.data); // Debug log
 
       if (response.data.success) {
-        // Update sessionStorage and state synchronously
-        const savedProfile = response.data.profile;
-        sessionStorage.setItem('userProfile', JSON.stringify(savedProfile));
-        setProfile(savedProfile);
-        setIsEditing(false); // Immediately switch to view mode
-        alert("Profile saved successfully");
-      } else {
-        throw new Error(response.data.message || 'Failed to save profile');
+        setProfile(response.data.profile);
+        setIsEditing(false);
+        setResume(null);
+        sessionStorage.setItem('userProfile', JSON.stringify(response.data.profile));
+        alert('Profile saved successfully');
       }
     } catch (error) {
-      console.error("Error saving profile:", error);
-      alert(error.message || "Error saving profile");
+      console.error('Error:', error);
+      alert('Error saving profile. Please try again.');
     }
   };
 
@@ -341,6 +381,16 @@ const ProfilePage = () => {
                 {errors.state && 
                   <span className="error-message">{errors.state}</span>}
               </div>
+              <div className="form-group">
+                <label>Resume (PDF only):</label>
+                <input
+                  type="file"
+                  accept=".pdf"
+                  onChange={handleResumeChange}
+                  className="form-control"
+                />
+                {resumeError && <span className="error-message">{resumeError}</span>}
+              </div>
               <button type="submit">Save Profile</button>
             </form>
           </>
@@ -357,6 +407,19 @@ const ProfilePage = () => {
               <p><strong>LinkedIn Profile:</strong> {profile.linkedinProfile}</p>
               <p><strong>City:</strong> {profile.city}</p>
               <p><strong>State:</strong> {profile.state}</p>
+              {profile.resume && (
+                <p>
+                  <strong>Resume:</strong>{' '}
+                  <a 
+                    href={`${process.env.REACT_APP_API_URL}${profile.resume}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="resume-link"
+                  >
+                    Download Resume
+                  </a>
+                </p>
+              )}
             </div>
             <button onClick={handleEdit}>Edit Profile</button>
           </>

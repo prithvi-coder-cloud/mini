@@ -92,3 +92,24 @@
     border-color: #28a745;
   }
   
+  .resume-link {
+    color: #0f5ef3;
+    text-decoration: none;
+    padding: 5px 10px;
+    background-color: #e8f0fe;
+    border-radius: 4px;
+  }
+  
+  .resume-link:hover {
+    background-color: #d2e3fc;
+    text-decoration: underline;
+  }
+  
+  .form-control {
+    width: 100%;
+    padding: 8px;
+    margin-top: 5px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+  }
+  

@@ -175,7 +175,7 @@ app.post("/login", async (req, res) => {
             }
           });
         }
-      } else {
+    } else {
         res.json("notexist");
       }
     } else {
@@ -263,7 +263,7 @@ app.post("/signup", async (req, res) => {
 
     // Send notification email
     try {
-      await sendSignupEmail(email, name);
+    await sendSignupEmail(email, name);
     } catch (emailError) {
       console.error('Error sending signup email:', emailError);
       // Continue with signup even if email fails
@@ -360,30 +360,26 @@ if (!fs.existsSync(uploadDir)) {
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, uploadDir);
+    cb(null, 'uploads/'); // Make sure this directory exists
   },
   filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + '-' + file.originalname);
+    cb(null, Date.now() + '-' + file.originalname);
   }
 });
 
-const upload = multer({
+const upload = multer({ 
   storage: storage,
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
-  },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
+    if (file.mimetype === 'application/pdf') {
       cb(null, true);
     } else {
-      cb(new Error('Not an image! Please upload an image.'), false);
+      cb(new Error('Only PDF files are allowed'), false);
     }
   }
 });
 
 // Serve static files from uploads directory
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static('uploads'));
 
 //Job posting route
 app.post('/jobs', upload.single('companyLogo'), async (req, res) => {
@@ -796,7 +792,7 @@ app.post('/apply', upload.single('resume'), async (req, res) => {
 app.get('/applications', async (req, res) => {
   try {
     const { companyId } = req.query;
-    
+
     if (!companyId) {
       return res.status(400).json({ message: 'Company ID is required' });
     }
@@ -887,8 +883,8 @@ app.post('/addtest', async (req, res) => {
     const { jobTitle, questions, emails, companyId } = req.body;
 
     // Save test to database
-    const test = new Test({
-      jobTitle,
+  const test = new Test({
+    jobTitle,
       companyId,
       questions
     });
@@ -1494,38 +1490,40 @@ app.post('/api/payments/save', async (req, res) => {
 //   }
 // });
 
-app.post('/profile', async (req, res) => {
+app.post('/profile', upload.single('resume'), async (req, res) => {
   try {
-    const profileData = req.body;
-    
-    // Find existing profile or create new one
-    let profile = await Profile.findOne({ email: profileData.email });
-    
-    if (profile) {
-      // Update existing profile
-      profile = await Profile.findOneAndUpdate(
-        { email: profileData.email },
-        profileData,
-        { new: true } // Return updated document
-      );
-    } else {
-      // Create new profile
-      profile = new Profile(profileData);
-      await profile.save();
+    // Log the request for debugging
+    console.log('Form data:', req.body);
+    console.log('File:', req.file);
+
+    const profileData = {
+      firstName: req.body.firstName,
+      lastName: req.body.lastName,
+      phoneNumber: req.body.phoneNumber,
+      email: req.body.email,
+      skills: req.body.skills,
+      linkedinProfile: req.body.linkedinProfile,
+      city: req.body.city,
+      state: req.body.state,
+      middleName: req.body.middleName || ''
+    };
+
+    // Only add resume field if a file was uploaded
+    if (req.file) {
+      profileData.resume = `/uploads/${req.file.filename}`;
     }
 
-    res.json({ 
-      success: true, 
-      message: 'Profile saved successfully',
-      profile: profile 
-    });
+    const profile = await Profile.findOneAndUpdate(
+      { email: profileData.email },
+      profileData,
+      { new: true, upsert: true }
+    );
+
+    res.json({ success: true, profile });
 
   } catch (error) {
-    console.error('Error saving profile:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: error.message || 'Failed to save profile'
-    });
+    console.error('Error:', error);
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 

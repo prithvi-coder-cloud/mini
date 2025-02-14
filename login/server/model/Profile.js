@@ -11,6 +11,10 @@ const profileSchema = new mongoose.Schema({
   linkedinProfile: { type: String, required: true },
   city: { type: String, required: true },
   state: { type: String, required: true },
+  resume: { 
+    type: String, // This is correct - we store the file path, not the file itself
+    default: ''
+  }
 });
 
 // Create and export the Profile model
