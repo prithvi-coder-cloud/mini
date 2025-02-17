@@ -34,6 +34,8 @@ const Razorpay = require('razorpay');
 const axios = require('axios');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const fs = require('fs');
+const fsPromises = require('fs').promises;
+const PDFParser = require('pdf-parse');
 
 const clientid = process.env.CLIENT_ID;
 const clientsecret = process.env.CLIENT_SECRET;
@@ -42,8 +44,14 @@ const clientsecret = process.env.CLIENT_SECRET;
 mongoose.connect(process.env.DATABASE, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
-}).then(() => console.log("MongoDB connected"))
-  .catch(err => console.error("MongoDB connection error:", err));
+})
+.then(() => {
+  console.log("MongoDB connected successfully");
+})
+.catch(err => {
+  console.error("MongoDB connection error:", err);
+  process.exit(1); // Exit the process if database connection fails
+});
 
 // Schedule job status update every minute
 cron.schedule('* * * * *', async () => {
@@ -1936,91 +1944,216 @@ app.get('/view-applications/:userId', async (req, res) => {
     }
 });
 
+// Add this function to extract skills section from resume text
+function extractSkillsSection(text) {
+  console.log("\n=== Starting Skills Extraction ===\n");
+  console.log("Raw text:", text); // Debug log
+
+  // Find the TECHNICAL SKILLS section and its content
+  const skillsRegex = /TECHNICAL\s+SKILLS\s*([\s\S]*?)(?=\n\s*(?:PERSONAL|EDUCATION|EXPERIENCE|PROJECTS|CERTIFICATIONS|ACHIEVEMENTS|LANGUAGES|INTERESTS|HOBBIES|ACTIVITIES|AWARDS|INTERNSHIP|WORK|PROFESSIONAL|QUALIFICATION)|$)/i;
+  const match = text.match(skillsRegex);
+
+  if (!match) {
+    console.log("No skills section found");
+    return '';
+  }
+
+  // Get the content after "TECHNICAL SKILLS"
+  const skillsContent = match[1].trim();
+  console.log("\nExtracted Skills Section:", skillsContent);
+  return skillsContent;
+}
+
+function parseSkills(skillsSection) {
+  if (!skillsSection) return [];
+
+  console.log("\n=== Parsing Skills ===\n");
+  console.log("Input Skills Section:", skillsSection);
+
+  // Split content into lines
+  const lines = skillsSection
+    .split(/[\n\r]/)
+    .map(line => line.trim())
+    .filter(line => line.length > 0);
+
+  console.log("Split lines:", lines);
+
+  let skills = [];
+  let currentCategory = '';
+
+  lines.forEach(line => {
+    // Skip if line is just "TECHNICAL SKILLS"
+    if (line.toUpperCase() === 'TECHNICAL SKILLS') return;
+
+    // Check if line is a category (e.g., "Web Development", "Programming Languages")
+    if (line.match(/^[A-Z][a-z]+ [A-Z][a-z]+$/) || line.endsWith(':')) {
+      currentCategory = line.replace(':', '').trim();
+      console.log("Found category:", currentCategory);
+      return;
+    }
+
+    // Split the line by common delimiters
+    const lineSkills = line
+      .split(/[,|•·⋅‣⁃⦁⦾⦿→✓\-–—●\t|]/g)
+      .map(skill => skill.trim())
+      .filter(skill => {
+        return skill && 
+               skill.length > 1 && 
+               !skill.match(/^[0-9.]+$/) &&
+               skill.toLowerCase() !== 'technical skills';
+      });
+
+    if (lineSkills.length > 0) {
+      console.log(`Found skills under ${currentCategory}:`, lineSkills);
+      skills.push(...lineSkills);
+    }
+  });
+
+  // Normalize skills
+  const normalizedSkills = [...new Set(skills)]
+    .map(skill => {
+      const normalizedSkill = skill.toLowerCase().trim();
+      // Skill mappings
+      if (['react', 'react.js', 'reactjs'].includes(normalizedSkill)) return 'React.js';
+      if (['python', 'python3'].includes(normalizedSkill)) return 'python';
+      if (['node', 'node.js', 'nodejs'].includes(normalizedSkill)) return 'Node.js';
+      if (['express', 'express.js', 'expressjs'].includes(normalizedSkill)) return 'Express.js';
+      if (['java', 'core java', 'java programming'].includes(normalizedSkill)) return 'Java';
+      if (['javascript', 'js'].includes(normalizedSkill)) return 'JavaScript';
+      if (['html', 'html5'].includes(normalizedSkill)) return 'HTML';
+      if (['css', 'css3'].includes(normalizedSkill)) return 'CSS';
+      if (['daa', 'design and analysis of algorithms'].includes(normalizedSkill)) return 'DAA';
+      if (['openstack', 'open stack'].includes(normalizedSkill)) return 'Openstack';
+      return skill;
+    })
+    .filter(skill => skill.length > 1);
+
+  console.log("\nFinal Normalized Skills:", normalizedSkills);
+  return normalizedSkills;
+}
+
+async function extractSkillsUsingGemini(text) {
+  try {
+    console.log("\n=== Starting Skills Extraction using Gemini ===\n");
+
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+
+    const prompt = `
+      From the following resume text, extract only the technical skills or skills. 
+      Fetch all words that comes under the category of technical skills or skills.
+      Return the skills as a simple array of strings.
+      Only extract actual technical skills or skills, ignore sections like Personal Details, Education, etc.
+
+      Resume Text:
+      ${text}
+    `;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const skillsText = response.text();
+
+    console.log("Gemini Response:", skillsText);
+
+    // Parse the response into an array of skills
+    let skills = skillsText
+      .split('\n')
+      .map(skill => skill.replace(/^[-•]\s*/, '').trim()) // Remove bullet points and trim
+      .filter(skill => skill && skill.length > 1);
+
+    console.log("Extracted Skills:", skills);
+    return skills;
+  } catch (error) {
+    console.error("Error in Gemini extraction:", error);
+    return [];
+  }
+}
+
+// Helper function to normalize skill names
+function normalizeSkillName(skill) {
+  const normalized = skill.toLowerCase().trim()
+    .replace(/[^a-z0-9.]/g, '') // Remove special characters except dots
+    .replace(/^(the|a|an)\s+/, ''); // Remove articles
+
+  // Common variations mapping
+  const variations = {
+    'react': ['react', 'reactjs', 'react.js'],
+    'python': ['python', 'python3', 'py'],
+    'javascript': ['javascript', 'js', 'ecmascript'],
+    'nodejs': ['node', 'nodejs', 'node.js'],
+    'express': ['express', 'expressjs', 'express.js'],
+    'mongodb': ['mongo', 'mongodb'],
+    'html': ['html', 'html5'],
+    'css': ['css', 'css3'],
+    'daa': ['daa', 'designandanalysisofalgorithms', 'algorithmsanalysis'],
+    'openstack': ['openstack', 'openstackcloud']
+  };
+
+  // Check if the normalized skill matches any variation
+  for (const [standard, variants] of Object.entries(variations)) {
+    if (variants.includes(normalized)) {
+      return standard;
+    }
+  }
+
+  return normalized;
+}
+
+// Update the recommendations endpoint
 app.post('/recommendations', async (req, res) => {
   try {
     const { email } = req.body;
-    console.log('Fetching recommendations for email:', email);
+    console.log('\n=== Getting Recommendations for:', email, '===\n');
 
-    // 1. Get user's skills from profile
     const profile = await Profile.findOne({ email });
-    if (!profile || !profile.skills) {
-      console.log('No profile or skills found');
+    if (!profile || !profile.resume) {
+      console.log('No profile or resume found');
       return res.json({ recommendations: [] });
     }
 
-    // 2. Get all available courses
+    // Read and parse PDF
+    const resumePath = path.join(__dirname, profile.resume.replace(/^\//, ''));
+    const dataBuffer = await fsPromises.readFile(resumePath);
+    const pdfData = await PDFParser(dataBuffer);
+    const resumeText = pdfData.text;
+
+    // Extract skills using Gemini AI
+    const skills = await extractSkillsUsingGemini(resumeText);
+    
+    if (skills.length === 0) {
+      console.log('No skills found in resume');
+      return res.json({ recommendations: [] });
+    }
+
+    console.log('\nExtracted Skills:', skills);
+
+    // Get all courses
     const allCourses = await Course.find({}, 'courseName');
-    if (!allCourses.length) {
-      console.log('No courses found');
-      return res.json({ recommendations: [] });
-    }
+    console.log('\nAll available courses:', allCourses.map(c => c.courseName));
 
-    // 3. Parse user skills into array
-    const userSkills = profile.skills.toLowerCase().split(',').map(skill => skill.trim());
-    console.log('User skills:', userSkills);
+    // Match skills with courses using normalized comparison
+    const recommendedCourses = allCourses
+      .filter(course => {
+        const normalizedCourseName = normalizeSkillName(course.courseName);
+        return skills.some(skill => {
+          const normalizedSkill = normalizeSkillName(skill);
+          const isMatch = normalizedSkill === normalizedCourseName;
+          
+          if (isMatch) {
+            console.log(`Matched skill "${skill}" with course "${course.courseName}"`);
+          }
+          return isMatch;
+        });
+      })
+      .map(course => course.courseName);
 
-    // 4. Initialize Gemini
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-
-    // 5. Create prompt for skill matching
-    const prompt = `Given these user skills: ${userSkills.join(', ')}
-    And these available courses: ${allCourses.map(c => c.courseName).join(', ')}
-    
-    Return ONLY an array of course names that are most relevant to the user's skills.
-    Consider these matching rules:
-    1. Course name contains or relates to any of the user's skills
-    2. Course content would help develop or enhance the user's existing skills
-    3. Course is a logical next step for someone with these skills
-    
-    Return the response as a simple array of strings, only including course names from the available courses list.`;
-
-    // 6. Get AI recommendations
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    let recommendedCourses = [];
-
-    try {
-      // 7. Parse and clean the AI response
-      const aiText = response.text().replace(/```/g, '').trim();
-      const aiRecommendations = JSON.parse(aiText);
-
-      // 8. Filter to match only existing courses
-      recommendedCourses = allCourses
-        .filter(course => 
-          aiRecommendations.some(rec => 
-            course.courseName.toLowerCase() === rec.toLowerCase()
-          )
-        )
-        .map(course => course.courseName);
-
-    } catch (parseError) {
-      console.error('Error parsing AI response:', parseError);
-      // Fallback: Direct skill matching
-      recommendedCourses = allCourses
-        .filter(course => 
-          userSkills.some(skill =>
-            course.courseName.toLowerCase().includes(skill) ||
-            skill.includes(course.courseName.toLowerCase())
-          )
-        )
-        .map(course => course.courseName);
-    }
-
-    console.log('Final recommendations:', recommendedCourses);
+    console.log('\nRecommended Courses:', recommendedCourses);
     res.json({ recommendations: recommendedCourses });
 
   } catch (error) {
     console.error('Error in recommendations:', error);
-    res.status(500).json({ 
-      message: 'Error generating recommendations',
-      error: error.message 
-    });
+    res.status(500).json({ error: error.message });
   }
 });
-
-
-
-
 
 app.post('/chatbot', async (req, res) => {
   const { message } = req.body;

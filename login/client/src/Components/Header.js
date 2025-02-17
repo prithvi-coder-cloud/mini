@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import "./header.css";
 import { NavLink, useNavigate } from 'react-router-dom';
 import axios from "axios";
@@ -11,6 +11,18 @@ const Header = () => {
   const [recommendations, setRecommendations] = useState([]);
   const [showPopup, setShowPopup] = useState(false);
   const navigate = useNavigate();
+  const progressBarRef = useRef(null);
+
+  useEffect(() => {
+    let timer;
+    if (showPopup) {
+      // Auto close popup after 5 seconds
+      timer = setTimeout(() => {
+        setShowPopup(false);
+      }, 5000);
+    }
+    return () => clearTimeout(timer);
+  }, [showPopup]);
 
   const getUser = async () => {
     try {
@@ -159,17 +171,24 @@ const Header = () => {
           </div>
         </nav>
         {showPopup && recommendations.length > 0 && (
-          <div className="recommendation-popup"> 
-            <h3>Recommended Courses Based on Your Skills:</h3>
-            <ul>
-              {recommendations.map((recommendation, index) => (
-                <li key={index}>{recommendation}</li>
-              ))}
-            </ul>
-            <button onClick={handleClosePopup}>
-              Close
-            </button>
-          </div>
+          <>
+            <div className="popup-backdrop" />
+            <div className="recommendation-popup">
+              <h3>Recommended Courses Based on Your Skills</h3>
+              <ul>
+                {recommendations.map((recommendation, index) => (
+                  <li key={index}>{recommendation}</li>
+                ))}
+              </ul>
+              <div className="progress-container">
+                <div 
+                  className="progress-bar"
+                  onAnimationEnd={() => setShowPopup(false)}
+                  style={{ willChange: 'width' }}
+                />
+              </div>
+            </div>
+          </>
         )}
       </header>
       <Chatbot /> {/* Add the Chatbot component here */}

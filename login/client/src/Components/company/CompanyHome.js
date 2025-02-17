@@ -48,25 +48,25 @@ const CompanyHome = () => {
         <nav>
           <ul>
             <li>
-              <NavLink to="/jobposting" className='nav-link'>Post Job</NavLink>
+              <NavLink to="/jobposting" className='course-nav-link'>Post Job</NavLink>
             </li>
             <li>
-              <NavLink to="/viewjobs" className='nav-link'>View Posted Job</NavLink>
+              <NavLink to="/viewjobs" className='course-nav-link'>View Posted Job</NavLink>
             </li>
             <li>
-              <NavLink to="/applicationd" className='nav-link'>Applications</NavLink>
+              <NavLink to="/applicationd" className='course-nav-link'>Applications</NavLink>
             </li>
             <li>
-              <NavLink to="/highscorers" className='nav-link'>Eligible Candidates</NavLink>
+              <NavLink to="/highscorers" className='course-nav-link'>Eligible Candidates</NavLink>
             </li>
             <li>
-              <NavLink to="/selectedcandidate" className='nav-link'>Selected Candidates</NavLink>
+              <NavLink to="/selectedcandidate" className='course-nav-link'>Selected Candidates</NavLink>
             </li>
             <li>
-              <NavLink to="/changepassword" className='nav-link'>Change Password</NavLink>
+              <NavLink to="/changepassword" className='course-nav-link'>Change Password</NavLink>
             </li>
             <li onClick={logout}>
-              <span className='nav-link' style={{ cursor: 'pointer' }}>Logout</span>
+              <span className='course-nav-link' style={{ cursor: 'pointer' }}>Logout</span>
             </li>
           </ul>
         </nav>
