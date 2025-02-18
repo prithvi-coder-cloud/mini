@@ -116,14 +116,21 @@ const Header = () => {
     getUser();
   }, []);
 
+  // Check if user is logged in
+  const isLoggedIn = () => {
+    return Object.keys(userdata).length > 0 || sessionStorage.getItem('email');
+  };
+
   return (
     <>
       <header>
         <nav>
           <div className="logo-container">
-            <button className="menu-button" onClick={() => setIsSideNavOpen(true)}>
-              <FaBars />
-            </button>
+            {isLoggedIn() && (
+              <button className="menu-button" onClick={() => setIsSideNavOpen(true)}>
+                <FaBars />
+              </button>
+            )}
             <img src={logo} alt="Logo" className="logo" />
             <h1 className='left'>Job Board</h1>
           </div>
@@ -152,6 +159,16 @@ const Header = () => {
         </nav>
       </header>
 
+      {/* Only render SideNav if user is logged in */}
+      {isLoggedIn() && (
+        <SideNav 
+          isOpen={isSideNavOpen} 
+          toggleNav={() => setIsSideNavOpen(false)}
+          logout={logout}
+          userdata={userdata}
+        />
+      )}
+
       {showPopup && recommendations.length > 0 && (
         <>
           <div className="popup-backdrop" />
@@ -173,12 +190,6 @@ const Header = () => {
         </>
       )}
 
-      <SideNav 
-        isOpen={isSideNavOpen} 
-        toggleNav={() => setIsSideNavOpen(false)}
-        logout={logout}
-        userdata={userdata}
-      />
       <Chatbot />
     </>
   );
