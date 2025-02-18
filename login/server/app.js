@@ -36,9 +36,14 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const fs = require('fs');
 const fsPromises = require('fs').promises;
 const PDFParser = require('pdf-parse');
+const tf = require('@tensorflow/tfjs');
+const use = require('@tensorflow-models/universal-sentence-encoder');
 
 const clientid = process.env.CLIENT_ID;
 const clientsecret = process.env.CLIENT_SECRET;
+
+global.fetch = require('node-fetch');
+global.Headers = fetch.Headers;  // Add this line
 
 // Connect to MongoDB using the connection string from the .env file
 mongoose.connect(process.env.DATABASE, {
@@ -2032,41 +2037,41 @@ function parseSkills(skillsSection) {
   return normalizedSkills;
 }
 
-async function extractSkillsUsingGemini(text) {
+const extractSkillsUsingGemini = async (resumeText) => {
   try {
-    console.log("\n=== Starting Skills Extraction using Gemini ===\n");
-
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
     const prompt = `
-      From the following resume text, extract only the technical skills or skills. 
-      Fetch all words that comes under the category of technical skills or skills.
-      Return the skills as a simple array of strings.
-      Only extract actual technical skills or skills, ignore sections like Personal Details, Education, etc.
-
-      Resume Text:
-      ${text}
+      Analyze this resume text and extract a list of technical skills and technologies.
+      Format the output as a simple comma-separated list.
+      Only include actual technical skills, programming languages, tools, and technologies.
+      Resume text:
+      ${resumeText}
     `;
 
-    const result = await model.generateContent(prompt);
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.2,
+        topK: 40,
+        topP: 0.8,
+        maxOutputTokens: 1024,
+      },
+    });
+
     const response = await result.response;
-    const skillsText = response.text();
-
-    console.log("Gemini Response:", skillsText);
-
-    // Parse the response into an array of skills
-    let skills = skillsText
-      .split('\n')
-      .map(skill => skill.replace(/^[-•]\s*/, '').trim()) // Remove bullet points and trim
-      .filter(skill => skill && skill.length > 1);
-
-    console.log("Extracted Skills:", skills);
+    const skills = response.text().split(',')
+      .map(skill => skill.trim())
+      .filter(skill => skill.length > 0);
+    
+    console.log('Extracted skills:', skills);
     return skills;
   } catch (error) {
-    console.error("Error in Gemini extraction:", error);
+    console.error('Error in Gemini extraction:', error);
     return [];
   }
-}
+};
 
 // Helper function to normalize skill names
 function normalizeSkillName(skill) {
@@ -2102,8 +2107,9 @@ function normalizeSkillName(skill) {
 app.post('/recommendations', async (req, res) => {
   try {
     const { email } = req.body;
-    console.log('\n=== Getting Recommendations for:', email, '===\n');
+    console.log(`\n=== Getting Recommendations for: ${email} ===\n`);
 
+    // Get user's profile
     const profile = await Profile.findOne({ email });
     if (!profile || !profile.resume) {
       console.log('No profile or resume found');
@@ -2464,101 +2470,158 @@ app.put('/jobs/:id', upload.single('companyLogo'), async (req, res) => {
   }
 });
 
-// Add this new endpoint
+// Load BERT model once at startup
+let model;
+(async () => {
+  model = await use.load();
+  console.log('Universal Sentence Encoder model loaded');
+})();
+
+// Enhanced ATS scoring endpoint
 app.post('/ats-score', async (req, res) => {
   try {
     const { email } = req.body;
-    
-    // Get user's profile and resume
     const profile = await Profile.findOne({ email });
+    
     if (!profile || !profile.resume) {
-      return res.status(400).json({ error: 'No resume found' });
+      throw new Error('No resume found');
     }
 
-    // Read the PDF
     const resumePath = path.join(__dirname, profile.resume.replace(/^\//, ''));
     const dataBuffer = await fsPromises.readFile(resumePath);
     const pdfData = await PDFParser(dataBuffer);
     const resumeText = pdfData.text.toLowerCase();
 
-    // Define key sections and keywords to look for
-    const sections = ['education', 'experience', 'skills', 'projects', 'achievements'];
-    const actionVerbs = [
-      'achieved', 'developed', 'implemented', 'created', 'managed',
-      'led', 'designed', 'improved', 'increased', 'reduced'
-    ];
+    // Format and readability check
+    const wordCount = resumeText.split(/\s+/).length;
+    const formatScore = Math.min(100, (wordCount / 400) * 100);
 
-    const feedback = [];
+    // Get embeddings for resume text first
+    const embeddings = await model.embed([resumeText]);
+    const resumeEmbedding = embeddings.arraySync()[0];
+
+    const sections = {
+      contact: {
+        keywords: ['email', 'phone', 'address', 'linkedin', 'github', 'portfolio'],
+        weight: 0.10,
+        required: true
+      },
+      education: {
+        keywords: [
+          'degree', 'university', 'college', 'gpa', 'academic',
+          'bachelor', 'master', 'phd', 'diploma', 'certification',
+          'major', 'minor', 'graduate', 'cgpa', 'percentage'
+        ],
+        weight: 0.15,
+        required: true
+      },
+      experience: {
+        keywords: [
+          'work', 'job', 'internship', 'role', 'position',
+          'responsibility', 'achievement', 'led', 'managed',
+          'developed', 'implemented', 'created', 'designed',
+          'improved', 'increased', 'reduced', 'team', 'project'
+        ],
+        weight: 0.30,
+        required: true
+      },
+      skills: {
+        keywords: [
+          'programming', 'software', 'development', 'engineering',
+          'framework', 'language', 'database', 'cloud', 'api',
+          'frontend', 'backend', 'full-stack', 'devops', 'agile',
+          'testing', 'architecture', 'design', 'analysis'
+        ],
+        weight: 0.25,
+        required: true
+      },
+      achievements: {
+        keywords: [
+          'award', 'recognition', 'certification', 'honor',
+          'achievement', 'accomplished', 'improved', 'increased',
+          'reduced', 'saved', 'delivered', 'exceeded'
+        ],
+        weight: 0.20,
+        required: false
+      }
+    };
+
     let totalScore = 0;
+    const improvements = [];
 
-    // Check sections (40% of score)
-    const foundSections = sections.filter(section => 
-      resumeText.includes(section.toLowerCase())
-    );
-    const sectionScore = (foundSections.length / sections.length) * 40;
-
-    foundSections.forEach(section => {
-      feedback.push({
-        type: 'positive',
-        message: `Found ${section} section`
-      });
-    });
-
-    sections.filter(section => !foundSections.includes(section))
-      .forEach(section => {
-        feedback.push({
-          type: 'negative',
-          message: `Missing ${section} section. Consider adding this important section.`
+    // Enhanced section analysis with Enhancv-style scoring
+    for (const [sectionName, section] of Object.entries(sections)) {
+      try {
+        const sectionEmbeddings = await model.embed(section.keywords);
+        const keywordEmbeddings = sectionEmbeddings.arraySync();
+        
+        // Calculate semantic similarity
+        const similarities = keywordEmbeddings.map(keywordEmb => {
+          const similarity = tf.tensor1d(resumeEmbedding)
+            .dot(tf.tensor1d(keywordEmb))
+            .div(
+              tf.norm(tf.tensor1d(resumeEmbedding))
+                .mul(tf.norm(tf.tensor1d(keywordEmb)))
+            )
+            .arraySync();
+          return Math.max(0, similarity); // Ensure non-negative similarity
         });
-      });
 
-    // Check action verbs (30% of score)
-    const foundVerbs = actionVerbs.filter(verb => 
-      resumeText.includes(verb.toLowerCase())
-    );
-    const verbScore = (foundVerbs.length / actionVerbs.length) * 30;
+        // Calculate section score with Enhancv-style metrics
+        const keywordMatches = section.keywords.filter(keyword => 
+          resumeText.includes(keyword.toLowerCase())
+        ).length;
 
-    if (foundVerbs.length >= 5) {
-      feedback.push({
-        type: 'positive',
-        message: 'Good use of action verbs in descriptions'
-      });
-    } else {
-      feedback.push({
-        type: 'suggestion',
-        message: 'Consider using more action verbs to describe your achievements'
-      });
+        const sectionScore = (
+          (similarities.reduce((acc, score) => acc + score, 0) / similarities.length) * 0.6 +
+          (keywordMatches / section.keywords.length) * 0.4
+        ) * 100;
+
+        const weightedScore = sectionScore * section.weight;
+        totalScore += weightedScore;
+
+        // Generate section-specific feedback
+        if (sectionScore < 40) {
+          improvements.push(`Add more details to your ${sectionName} section`);
+          if (section.required) {
+            improvements.push(`Include essential ${sectionName} information`);
+          }
+        } else if (sectionScore < 70) {
+          improvements.push(`Enhance your ${sectionName} section with more specific details`);
+        }
+
+      } catch (sectionError) {
+        console.error(`Error analyzing ${sectionName} section:`, sectionError);
+        continue; // Skip this section if there's an error
+      }
     }
 
-    // Check content length and formatting (30% of score)
-    const words = resumeText.split(/\s+/).filter(word => word.length > 0);
-    const lengthScore = Math.min(words.length / 400, 1) * 30; // Assume ideal length is 400+ words
+    // Apply format score
+    totalScore = (totalScore * 0.8) + (formatScore * 0.2);
+    
+    // Normalize score to match Enhancv range (typically 40-90)
+    const normalizedScore = Math.min(90, Math.max(40, Math.round(totalScore)));
 
-    if (words.length < 200) {
-      feedback.push({
-        type: 'negative',
-        message: 'Resume seems too short. Consider adding more details.'
-      });
-    }
+    // Generate Enhancv-style feedback
+    const enhancvFeedback = {
+      score: normalizedScore,
+      feedback: [
+        ...improvements,
+        normalizedScore < 60 ? 'Focus on adding more quantifiable achievements' : '',
+        normalizedScore < 70 ? 'Use more industry-specific keywords' : '',
+        wordCount < 300 ? 'Your resume is too short. Add more relevant details' : '',
+        wordCount > 600 ? 'Consider making your resume more concise' : '',
+      ].filter(Boolean)
+    };
 
-    // Calculate final score
-    const finalScore = Math.round(sectionScore + verbScore + lengthScore);
-
-    if (finalScore > 80) {
-      feedback.push({
-        type: 'positive',
-        message: 'Strong overall resume structure and content'
-      });
-    }
-
-    res.json({
-      score: finalScore,
-      feedback: feedback
-    });
+    res.json(enhancvFeedback);
 
   } catch (error) {
     console.error('Error in ATS scoring:', error);
-    res.status(500).json({ error: 'Failed to analyze resume' });
+    res.status(500).json({ 
+      error: 'Failed to analyze resume',
+      details: error.message 
+    });
   }
 });
 

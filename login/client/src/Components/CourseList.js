@@ -55,7 +55,7 @@ const CourseList = () => {
         </nav>
       </header> */}
       <Header/>
-      <br></br><br></br><br></br><br></br>
+      <br></br><br></br><br></br>
 
       <div className="search-hero">
         <h1>Find Your Perfect Course</h1>

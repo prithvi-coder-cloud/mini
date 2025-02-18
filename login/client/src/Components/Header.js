@@ -191,6 +191,9 @@ const Header = () => {
       )}
 
       <Chatbot />
+
+      {/* Add to your navigation links */}
+      <NavLink to="/AtsChecker">ATS Resume Checker</NavLink>
     </>
   );
 };
