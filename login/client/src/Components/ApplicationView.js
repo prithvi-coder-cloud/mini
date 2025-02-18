@@ -42,7 +42,7 @@ const ApplicationView = () => {
 
     return (
         <div>
-         <Header/>            
+         <Header/><br></br><br></br><br></br><br></br>            
             {loading ? (
                 <div className="loading">Loading applications...</div>
             ) : applications.length === 0 ? (

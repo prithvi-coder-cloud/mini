@@ -205,6 +205,8 @@ const Dashboard = () => {
         </nav>
       </header> */}
             <Header/>
+            <br></br><br></br><br></br><br></br>
+
 
       <div className="search-hero">
         <h1>Find Your Dream Job Today</h1>

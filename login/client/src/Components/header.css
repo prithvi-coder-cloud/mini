@@ -1,9 +1,11 @@
 /* General styles for the header */
-.header {
-  margin: 0;
-  padding: 1rem;
-  background-color: #fff;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background-color: #1a73e8;
 }
 
 /* Flex container for nav items */
@@ -11,19 +13,20 @@ nav {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: 10px 20px;
 }
 
 /* Logo and title container */
 .logo-container {
   display: flex;
   align-items: center;
+  gap: 15px;
 }
 
 /* Logo styling */
 .logo {
   height: 30px;
   width: auto;
-  margin-right: 10px;
 }
 
 /* Styling for Job Board title */
@@ -41,11 +44,13 @@ nav {
   align-items: center;
   margin: 0;
   padding: 0;
+  gap: 15px;
 }
 
 /* Navigation links */
 .right ul li {
-  margin-left: 20px;
+  display: flex;
+  align-items: center;
 }
 
 .right ul li a {
@@ -56,10 +61,42 @@ nav {
 
 /* Style for the user's image */
 .right ul li img {
-  height: 40px;
   width: 40px;
+  height: 40px;
   border-radius: 50%;
-  margin-left: 10px;
+}
+
+/* Menu button styling */
+.menu-button {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s;
+}
+
+.menu-button:hover {
+  transform: scale(1.1);
+}
+
+/* User email styling */
+.user-email {
+  color: white;
+  font-size: 14px;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Add margin-top to main content to account for fixed header */
+main {
+  margin-top: 60px;
 }
 
 /* Recommendation popup styles */

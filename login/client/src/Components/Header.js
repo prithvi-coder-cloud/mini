@@ -4,7 +4,8 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import axios from "axios";
 import logo from "./img/logo/job.jpg";
 import Chatbot from './ChatBot'; // Import the Chatbot component
-
+import SideNav from './SideNav';
+import { FaBars } from 'react-icons/fa';
 
 const Header = () => {
   const [userdata, setUserdata] = useState({});
@@ -12,6 +13,7 @@ const Header = () => {
   const [showPopup, setShowPopup] = useState(false);
   const navigate = useNavigate();
   const progressBarRef = useRef(null);
+  const [isSideNavOpen, setIsSideNavOpen] = useState(false);
 
   useEffect(() => {
     let timer;
@@ -119,48 +121,26 @@ const Header = () => {
       <header>
         <nav>
           <div className="logo-container">
+            <button className="menu-button" onClick={() => setIsSideNavOpen(true)}>
+              <FaBars />
+            </button>
             <img src={logo} alt="Logo" className="logo" />
             <h1 className='left'>Job Board</h1>
           </div>
           
           <div className='right'>
             <ul>
-              <li>
-                <NavLink to="/">Home</NavLink>
-              </li>
-              {Object.keys(userdata).length > 0 ?(
+              {Object.keys(userdata).length > 0 ? (
                 <>
-                  <li>
-                    <NavLink to="/Dashboard">Apply for job</NavLink>
-                  </li>
-                  <li>
-                    <NavLink to="/courselist">Courses</NavLink>
-                  </li>
-                  <li>
-                    <NavLink to="/jobtitles">Test</NavLink>
-                  </li>
-                  <li>
-                    <NavLink to="/feedback">Feedback</NavLink>
-                  </li>
-                  <li>
-                    <NavLink to="/applicationview">Applied Jobs</NavLink>
-                  </li>
-                  <li>
-                    <NavLink to="/profilepage">Profile</NavLink>
-                  </li>
-                  <li onClick={logout}>Logout</li>
-
-                  <li style={{ color: "black", fontWeight: "bold" }}>
+                  <li style={{ color: "white", fontWeight: "bold" }}>
                     {userdata?.displayName}
                   </li>
                   <li>
-                    <img src={userdata?.image} style={{ width: "40px", borderRadius: "50%" }} alt="" />
+                    <img src={userdata?.image} alt="" />
                   </li>
-
                   <li>
-                    <span>{userdata?.email || sessionStorage.getItem('email')}</span>
+                    <span className="user-email">{userdata?.email || sessionStorage.getItem('email')}</span>
                   </li>
-
                 </>
               ) : (
                 <li>
@@ -170,29 +150,36 @@ const Header = () => {
             </ul>
           </div>
         </nav>
-        {showPopup && recommendations.length > 0 && (
-          <>
-            <div className="popup-backdrop" />
-            <div className="recommendation-popup">
-              <h3>Recommended Courses Based on Your Skills</h3>
-              <ul>
-                {recommendations.map((recommendation, index) => (
-                  <li key={index}>{recommendation}</li>
-                ))}
-              </ul>
-              <div className="progress-container">
-                <div 
-                  className="progress-bar"
-                  onAnimationEnd={() => setShowPopup(false)}
-                  style={{ willChange: 'width' }}
-                />
-              </div>
-            </div>
-          </>
-        )}
       </header>
-      <Chatbot /> {/* Add the Chatbot component here */}
 
+      {showPopup && recommendations.length > 0 && (
+        <>
+          <div className="popup-backdrop" />
+          <div className="recommendation-popup">
+            <h3>Recommended Courses Based on Your Skills</h3>
+            <ul>
+              {recommendations.map((recommendation, index) => (
+                <li key={index}>{recommendation}</li>
+              ))}
+            </ul>
+            <div className="progress-container">
+              <div 
+                className="progress-bar"
+                onAnimationEnd={() => setShowPopup(false)}
+                style={{ willChange: 'width' }}
+              />
+            </div>
+          </div>
+        </>
+      )}
+
+      <SideNav 
+        isOpen={isSideNavOpen} 
+        toggleNav={() => setIsSideNavOpen(false)}
+        logout={logout}
+        userdata={userdata}
+      />
+      <Chatbot />
     </>
   );
 };

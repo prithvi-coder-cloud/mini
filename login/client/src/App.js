@@ -55,7 +55,7 @@ import CourseDisplay from './Components/course provider/CourseDisplay';
 import ApplicationView from './Components/ApplicationView';
 import Chatbot from './Components/ChatBot';
 import Status from './Components/admin/Status';
-
+import AtsChecker from './Components/AtsChecker';
 function App() {
   return (
     <QuestionProvider>
@@ -111,6 +111,7 @@ function App() {
         <Route path="/applicationview" element={<ApplicationView />} />
         <Route path="/Chatbot" element={<Chatbot />}/>
         <Route path="/status" element={<Status />} />
+        <Route path="/AtsChecker" element={<AtsChecker />} />
         
       </Routes>
     </QuestionProvider>

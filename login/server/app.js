@@ -2463,3 +2463,136 @@ app.put('/jobs/:id', upload.single('companyLogo'), async (req, res) => {
     });
   }
 });
+
+// Add this new endpoint
+app.post('/ats-score', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    // Get user's profile and resume
+    const profile = await Profile.findOne({ email });
+    if (!profile || !profile.resume) {
+      return res.status(400).json({ error: 'No resume found' });
+    }
+
+    // Read the PDF
+    const resumePath = path.join(__dirname, profile.resume.replace(/^\//, ''));
+    const dataBuffer = await fsPromises.readFile(resumePath);
+    const pdfData = await PDFParser(dataBuffer);
+    const resumeText = pdfData.text.toLowerCase();
+
+    // Define key sections and keywords to look for
+    const sections = ['education', 'experience', 'skills', 'projects', 'achievements'];
+    const actionVerbs = [
+      'achieved', 'developed', 'implemented', 'created', 'managed',
+      'led', 'designed', 'improved', 'increased', 'reduced'
+    ];
+
+    const feedback = [];
+    let totalScore = 0;
+
+    // Check sections (40% of score)
+    const foundSections = sections.filter(section => 
+      resumeText.includes(section.toLowerCase())
+    );
+    const sectionScore = (foundSections.length / sections.length) * 40;
+
+    foundSections.forEach(section => {
+      feedback.push({
+        type: 'positive',
+        message: `Found ${section} section`
+      });
+    });
+
+    sections.filter(section => !foundSections.includes(section))
+      .forEach(section => {
+        feedback.push({
+          type: 'negative',
+          message: `Missing ${section} section. Consider adding this important section.`
+        });
+      });
+
+    // Check action verbs (30% of score)
+    const foundVerbs = actionVerbs.filter(verb => 
+      resumeText.includes(verb.toLowerCase())
+    );
+    const verbScore = (foundVerbs.length / actionVerbs.length) * 30;
+
+    if (foundVerbs.length >= 5) {
+      feedback.push({
+        type: 'positive',
+        message: 'Good use of action verbs in descriptions'
+      });
+    } else {
+      feedback.push({
+        type: 'suggestion',
+        message: 'Consider using more action verbs to describe your achievements'
+      });
+    }
+
+    // Check content length and formatting (30% of score)
+    const words = resumeText.split(/\s+/).filter(word => word.length > 0);
+    const lengthScore = Math.min(words.length / 400, 1) * 30; // Assume ideal length is 400+ words
+
+    if (words.length < 200) {
+      feedback.push({
+        type: 'negative',
+        message: 'Resume seems too short. Consider adding more details.'
+      });
+    }
+
+    // Calculate final score
+    const finalScore = Math.round(sectionScore + verbScore + lengthScore);
+
+    if (finalScore > 80) {
+      feedback.push({
+        type: 'positive',
+        message: 'Strong overall resume structure and content'
+      });
+    }
+
+    res.json({
+      score: finalScore,
+      feedback: feedback
+    });
+
+  } catch (error) {
+    console.error('Error in ATS scoring:', error);
+    res.status(500).json({ error: 'Failed to analyze resume' });
+  }
+});
+
+// Add this new endpoint for resume upload
+app.post('/upload-resume', upload.single('resume'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    // Update or create profile with new resume path
+    const profile = await Profile.findOneAndUpdate(
+      { email },
+      { 
+        $set: { 
+          resume: `/uploads/${req.file.filename}` 
+        }
+      },
+      { upsert: true, new: true }
+    );
+
+    res.json({ 
+      success: true, 
+      message: 'Resume uploaded successfully',
+      profile 
+    });
+
+  } catch (error) {
+    console.error('Error uploading resume:', error);
+    res.status(500).json({ error: 'Failed to upload resume' });
+  }
+});

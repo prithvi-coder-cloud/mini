@@ -10,7 +10,7 @@ const Home = () => {
   return (
     <>
       <div>
-        <Header/>
+        <Header/><br></br><br></br><br></br>
 
         {/* Hero Section */}
         <section className="hero-section">
