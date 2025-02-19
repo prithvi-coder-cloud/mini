@@ -2477,7 +2477,7 @@ let model;
   console.log('Universal Sentence Encoder model loaded');
 })();
 
-// Enhanced ATS scoring endpoint
+// Improved ATS scoring endpoint
 app.post('/ats-score', async (req, res) => {
   try {
     const { email } = req.body;
@@ -2502,60 +2502,138 @@ app.post('/ats-score', async (req, res) => {
 
     const sections = {
       contact: {
-        keywords: ['email', 'phone', 'address', 'linkedin', 'github', 'portfolio'],
+        keywords: [
+          'email', 'phone', 'mobile', 'address', 'linkedin', 'github', 'portfolio',
+          'website', 'social', 'contact', 'location'
+        ],
         weight: 0.10,
-        required: true
+        required: true,
+        icon: '📞'
       },
       education: {
         keywords: [
-          'degree', 'university', 'college', 'gpa', 'academic',
-          'bachelor', 'master', 'phd', 'diploma', 'certification',
-          'major', 'minor', 'graduate', 'cgpa', 'percentage'
+          'degree', 'university', 'college', 'gpa', 'academic', 'bachelor',
+          'master', 'phd', 'diploma', 'certification', 'major', 'minor',
+          'graduate', 'undergraduate', 'school', 'institute', 'education',
+          'course', 'studies', 'qualification'
         ],
         weight: 0.15,
-        required: true
+        required: true,
+        icon: '🎓'
       },
       experience: {
         keywords: [
-          'work', 'job', 'internship', 'role', 'position',
-          'responsibility', 'achievement', 'led', 'managed',
-          'developed', 'implemented', 'created', 'designed',
-          'improved', 'increased', 'reduced', 'team', 'project'
+          'work', 'job', 'internship', 'role', 'position', 'responsibility',
+          'achievement', 'led', 'managed', 'developed', 'implemented', 'created',
+          'designed', 'improved', 'increased', 'reduced', 'team', 'project',
+          'client', 'delivered', 'coordinated', 'supervised', 'analyzed',
+          'established', 'maintained', 'experience', 'company'
         ],
-        weight: 0.30,
-        required: true
+        weight: 0.35,  // Increased weight for experience
+        required: true,
+        icon: '💼'
       },
       skills: {
         keywords: [
-          'programming', 'software', 'development', 'engineering',
-          'framework', 'language', 'database', 'cloud', 'api',
-          'frontend', 'backend', 'full-stack', 'devops', 'agile',
-          'testing', 'architecture', 'design', 'analysis'
+          'programming', 'software', 'development', 'engineering', 'framework',
+          'language', 'database', 'cloud', 'api', 'frontend', 'backend',
+          'full-stack', 'devops', 'agile', 'testing', 'architecture', 'design',
+          'analysis', 'tools', 'technologies', 'platforms', 'systems', 'technical',
+          'methodology', 'proficient', 'expertise', 'skilled'
         ],
         weight: 0.25,
-        required: true
+        required: true,
+        icon: '🛠️'
       },
       achievements: {
         keywords: [
-          'award', 'recognition', 'certification', 'honor',
-          'achievement', 'accomplished', 'improved', 'increased',
-          'reduced', 'saved', 'delivered', 'exceeded'
+          'award', 'recognition', 'certification', 'honor', 'achievement',
+          'accomplished', 'improved', 'increased', 'optimized', 'enhanced',
+          'succeeded', 'delivered', 'exceeded', 'outperformed', 'awarded',
+          'recognized', 'selected', 'promoted'
         ],
-        weight: 0.20,
-        required: false
+        weight: 0.15,
+        required: false,
+        icon: '🏆'
       }
     };
 
-    let totalScore = 0;
-    const improvements = [];
+    // Improve scoring algorithm with more lenient scoring
+    const calculateSectionScore = (similarities, keywordMatches, totalKeywords, resumeText, section) => {
+      // Calculate base similarity score with higher baseline
+      const similarityScore = similarities.reduce((acc, score) => acc + score, 0) / similarities.length;
+      
+      // More lenient keyword density calculation
+      const keywordDensity = Math.min(1, (keywordMatches / totalKeywords) * 1.5); // 50% bonus
+      
+      // Relaxed content length scoring
+      const contentLength = resumeText.length;
+      const lengthScore = Math.min(1, contentLength / 1500); // Reduced length requirement
+      
+      // More generous scoring formula
+      const baseScore = (
+        (similarityScore * 0.3) +      // Reduced weight on semantic relevance
+        (keywordDensity * 0.5) +       // Increased weight on keyword presence
+        (lengthScore * 0.2)            // Same weight for length
+      ) * 100;
+      
+      // Enhanced bonus system
+      let bonus = 0;
+      
+      // More generous keyword match bonuses
+      if (keywordMatches > totalKeywords * 0.3) {
+        bonus += 20;  // Increased bonus for good matches
+      } else if (keywordMatches > totalKeywords * 0.2) {
+        bonus += 15;  // Added mid-tier bonus
+      } else if (keywordMatches > 0) {
+        bonus += 10;  // Base bonus for any matches
+      }
+      
+      // Required section bonus
+      if (section.required && keywordMatches > 0) {
+        bonus += 10; // Doubled from 5
+      }
+      
+      // More generous section-specific bonuses
+      switch(section.name) {
+        case 'experience':
+          if (keywordMatches > 4) bonus += 15;  // Reduced threshold, increased bonus
+          break;
+        case 'skills':
+          if (keywordMatches > 5) bonus += 12;  // Reduced threshold, increased bonus
+          break;
+        case 'education':
+          if (keywordMatches > 2) bonus += 10;  // Reduced threshold, increased bonus
+          break;
+        case 'contact':
+          if (keywordMatches > 1) bonus += 15;  // Added contact section bonus
+          break;
+      }
+      
+      // Higher minimum scores for required sections
+      const minimumScore = section.required ? 50 : 0;  // Increased from 40
+      
+      // Calculate final score with bonus and higher minimum threshold
+      const finalScore = Math.max(
+        minimumScore,
+        Math.min(100, baseScore + bonus)
+      );
+      
+      return finalScore;
+    };
 
-    // Enhanced section analysis with Enhancv-style scoring
+    let totalScore = 0;
+    const sectionScores = {};
+    const improvements = [];
+    const strengths = [];
+
+    // Enhanced section analysis
     for (const [sectionName, section] of Object.entries(sections)) {
       try {
         const sectionEmbeddings = await model.embed(section.keywords);
         const keywordEmbeddings = sectionEmbeddings.arraySync();
         
-        // Calculate semantic similarity
+        // Improved similarity calculation
         const similarities = keywordEmbeddings.map(keywordEmb => {
           const similarity = tf.tensor1d(resumeEmbedding)
             .dot(tf.tensor1d(keywordEmb))
@@ -2564,57 +2642,108 @@ app.post('/ats-score', async (req, res) => {
                 .mul(tf.norm(tf.tensor1d(keywordEmb)))
             )
             .arraySync();
-          return Math.max(0, similarity); // Ensure non-negative similarity
+          return Math.max(0, similarity);
         });
 
-        // Calculate section score with Enhancv-style metrics
-        const keywordMatches = section.keywords.filter(keyword => 
-          resumeText.includes(keyword.toLowerCase())
-        ).length;
+        // Enhanced keyword matching
+        const keywordMatches = section.keywords.filter(keyword => {
+          const keywordRegex = new RegExp(`\\b${keyword}\\b`, 'i');
+          return keywordRegex.test(resumeText);
+        }).length;
 
-        const sectionScore = (
-          (similarities.reduce((acc, score) => acc + score, 0) / similarities.length) * 0.6 +
-          (keywordMatches / section.keywords.length) * 0.4
-        ) * 100;
+        const sectionScore = calculateSectionScore(
+          similarities,
+          keywordMatches,
+          section.keywords.length,
+          resumeText,
+          { ...section, name: sectionName }
+        );
+
+        sectionScores[sectionName] = {
+          score: Math.round(sectionScore),
+          icon: section.icon,
+          matches: keywordMatches
+        };
 
         const weightedScore = sectionScore * section.weight;
         totalScore += weightedScore;
 
-        // Generate section-specific feedback
+        // Generate detailed feedback
         if (sectionScore < 40) {
-          improvements.push(`Add more details to your ${sectionName} section`);
-          if (section.required) {
-            improvements.push(`Include essential ${sectionName} information`);
-          }
+          improvements.push({
+            section: sectionName,
+            icon: section.icon,
+            score: Math.round(sectionScore),
+            suggestions: [
+              `Add more details to your ${sectionName} section`,
+              `Include key ${sectionName} keywords`,
+              `Quantify your ${sectionName} with specific metrics`
+            ]
+          });
         } else if (sectionScore < 70) {
-          improvements.push(`Enhance your ${sectionName} section with more specific details`);
+          improvements.push({
+            section: sectionName,
+            icon: section.icon,
+            score: Math.round(sectionScore),
+            suggestions: [
+              `Enhance your ${sectionName} with more specific details`,
+              `Use more industry-standard terminology`
+            ]
+          });
+        } else {
+          strengths.push({
+            section: sectionName,
+            icon: section.icon,
+            score: Math.round(sectionScore)
+          });
         }
 
       } catch (sectionError) {
         console.error(`Error analyzing ${sectionName} section:`, sectionError);
-        continue; // Skip this section if there's an error
+        continue;
       }
     }
 
-    // Apply format score
-    totalScore = (totalScore * 0.8) + (formatScore * 0.2);
-    
-    // Normalize score to match Enhancv range (typically 40-90)
-    const normalizedScore = Math.min(90, Math.max(40, Math.round(totalScore)));
+    // Adjust final score normalization
+    const formatMultiplier = (() => {
+      if (wordCount >= 200 && wordCount <= 800) {  // Wider acceptable range
+        return 1.25;  // Higher multiplier for acceptable length
+      } else if (wordCount > 800) {
+        return 1.1;   // Still reward longer resumes
+      } else {
+        return 1.0;   // Base multiplier for short resumes
+      }
+    })();
 
-    // Generate Enhancv-style feedback
-    const enhancvFeedback = {
-      score: normalizedScore,
-      feedback: [
-        ...improvements,
-        normalizedScore < 60 ? 'Focus on adding more quantifiable achievements' : '',
-        normalizedScore < 70 ? 'Use more industry-specific keywords' : '',
-        wordCount < 300 ? 'Your resume is too short. Add more relevant details' : '',
-        wordCount > 600 ? 'Consider making your resume more concise' : '',
+    // Adjust final score calculation
+    totalScore = Math.min(98, Math.round(totalScore * formatMultiplier)); // Increased max score
+
+    // More lenient minimum score threshold
+    if (Object.values(sectionScores).every(score => score.score > 0)) {
+      totalScore = Math.max(70, totalScore); // Increased minimum score for complete resumes
+    }
+
+    // Add score boosting for strong sections
+    const strongSections = Object.values(sectionScores).filter(score => score.score >= 75).length;
+    if (strongSections >= 3) {
+      totalScore = Math.min(98, totalScore + 5); // Bonus for multiple strong sections
+    }
+
+    // Generate comprehensive feedback
+    const feedback = {
+      overallScore: totalScore,
+      sectionScores,
+      strengths,
+      improvements,
+      generalSuggestions: [
+        wordCount < 300 ? '📄 Your resume is too short. Add more relevant details' : '',
+        wordCount > 600 ? '📄 Consider making your resume more concise' : '',
+        totalScore < 60 ? '📊 Focus on adding more quantifiable achievements' : '',
+        totalScore < 70 ? '🎯 Use more industry-specific keywords' : ''
       ].filter(Boolean)
     };
 
-    res.json(enhancvFeedback);
+    res.json(feedback);
 
   } catch (error) {
     console.error('Error in ATS scoring:', error);

@@ -78,7 +78,7 @@ const AtsChecker = () => {
         email: email
       });
 
-      setScore(response.data.score);
+      setScore(response.data);
       setFeedback(response.data.feedback);
     } catch (err) {
       setError(err.message || 'Failed to analyze resume');
@@ -128,18 +128,67 @@ const AtsChecker = () => {
             <div className="score-display">
               <h2>Your ATS Score</h2>
               <div className="score-circle">
-                <span className="score-number">{score}%</span>
+                <span className="score-number">{score.overallScore}%</span>
               </div>
             </div>
 
-            {feedback && (
-              <div className="feedback-section">
-                <h3>Feedback</h3>
+            <div className="section-scores">
+              <h3>Section Analysis</h3>
+              <div className="score-grid">
+                {Object.entries(score.sectionScores).map(([section, data]) => (
+                  <div className="section-score-card" key={section}>
+                    <div className="section-icon">{data.icon}</div>
+                    <div className="section-name">{section}</div>
+                    <div className="section-score" style={{
+                      color: data.score >= 70 ? '#28a745' : data.score >= 40 ? '#ffc107' : '#dc3545'
+                    }}>
+                      {data.score}%
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {score.strengths.length > 0 && (
+              <div className="strengths-section">
+                <h3>💪 Your Strengths</h3>
+                <div className="strengths-grid">
+                  {score.strengths.map((strength, index) => (
+                    <div className="strength-card" key={index}>
+                      <div className="strength-icon">{strength.icon}</div>
+                      <div className="strength-text">Strong {strength.section}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {score.improvements.length > 0 && (
+              <div className="improvements-section">
+                <h3>🎯 Areas for Improvement</h3>
+                {score.improvements.map((improvement, index) => (
+                  <div className="improvement-card" key={index}>
+                    <div className="improvement-header">
+                      <span className="improvement-icon">{improvement.icon}</span>
+                      <span className="improvement-section">{improvement.section}</span>
+                      <span className="improvement-score">{improvement.score}%</span>
+                    </div>
+                    <ul className="improvement-suggestions">
+                      {improvement.suggestions.map((suggestion, i) => (
+                        <li key={i}>{suggestion}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {score.generalSuggestions.length > 0 && (
+              <div className="general-suggestions">
+                <h3>📝 General Suggestions</h3>
                 <ul>
-                  {feedback.map((item, index) => (
-                    <li key={index} className={`feedback-item ${item.type}`}>
-                      {item.message}
-                    </li>
+                  {score.generalSuggestions.map((suggestion, index) => (
+                    <li key={index}>{suggestion}</li>
                   ))}
                 </ul>
               </div>
