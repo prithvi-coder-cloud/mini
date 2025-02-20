@@ -38,6 +38,9 @@ const fsPromises = require('fs').promises;
 const PDFParser = require('pdf-parse');
 const tf = require('@tensorflow/tfjs');
 const use = require('@tensorflow-models/universal-sentence-encoder');
+const helmet = require('helmet');
+const jwt = require('jsonwebtoken');
+const verifyToken = require('./middleware/auth');
 
 const clientid = process.env.CLIENT_ID;
 const clientsecret = process.env.CLIENT_SECRET;
@@ -156,8 +159,14 @@ app.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Check for admin login first
+    // Admin login
     if (email === 'admin' && password === 'admin') {
+      const token = jwt.sign(
+        { id: 'admin', email: 'admin', role: 'admin' },
+        process.env.JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+      
       return res.json({ 
         msg: "exist", 
         user: {
@@ -165,48 +174,30 @@ app.post("/login", async (req, res) => {
           email: 'admin',
           role: 'admin',
           name: 'Administrator'
-        }
+        },
+        token  // Send token to client
       });
     }
 
-    // If not admin, check regular users
+    // Regular user login
     const user = await collection.findOne({ email: email });
-
-    if (user) {
-      const isMatch = await bcrypt.compare(password, user.password);
-      if (isMatch) {
-        if (user.status === 0) {
-          res.json({ msg: "Your account is disabled. Please contact support." });
-        } else {
-          res.json({ 
-            msg: "exist", 
-            user: {
-              _id: user._id.toString(),
-              email: user.email,
-              role: user.role,
-              name: user.name
-            }
-          });
-        }
-    } else {
-        res.json("notexist");
-      }
-    } else {
-      // Check if it's a Google user
-      const googleUser = await users.findOne({ email: email });
-      if (googleUser) {
-        res.json({
-          msg: "exist",
-          user: {
-            _id: googleUser._id.toString(),
-            email: googleUser.email,
-            googleId: googleUser.googleId,
-            displayName: googleUser.displayName
-          }
-        });
-      } else {
-        res.json("notexist");
-      }
+    if (user && await bcrypt.compare(password, user.password)) {
+      const token = jwt.sign(
+        { id: user._id, email: user.email, role: user.role },
+        process.env.JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+      
+      res.json({ 
+        msg: "exist", 
+        user: {
+          _id: user._id.toString(),
+          email: user.email,
+          role: user.role,
+          name: user.name
+        },
+        token  // Send token to client
+      });
     }
   } catch (error) {
     console.error('Login error:', error);
@@ -2104,7 +2095,7 @@ function normalizeSkillName(skill) {
 }
 
 // Update the recommendations endpoint
-app.post('/recommendations', async (req, res) => {
+app.post('/recommendations', verifyToken, async (req, res) => {
   try {
     const { email } = req.body;
     console.log(`\n=== Getting Recommendations for: ${email} ===\n`);
@@ -2478,7 +2469,7 @@ let model;
 })();
 
 // Improved ATS scoring endpoint
-app.post('/ats-score', async (req, res) => {
+app.post('/ats-score', verifyToken, async (req, res) => {
   try {
     const { email } = req.body;
     const profile = await Profile.findOne({ email });
@@ -2755,7 +2746,7 @@ app.post('/ats-score', async (req, res) => {
 });
 
 // Add this new endpoint for resume upload
-app.post('/upload-resume', upload.single('resume'), async (req, res) => {
+app.post('/upload-resume', verifyToken, upload.single('resume'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
@@ -2788,3 +2779,5 @@ app.post('/upload-resume', upload.single('resume'), async (req, res) => {
     res.status(500).json({ error: 'Failed to upload resume' });
   }
 });
+
+app.use(helmet());

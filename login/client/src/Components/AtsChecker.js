@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import './ATSChecker.css';
-import Home1 from './Home1';
-
+import Header from './Header';
 const AtsChecker = () => {
   const [score, setScore] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -89,6 +88,7 @@ const AtsChecker = () => {
 
   return (
     <div>
+      <Header />
       <div className="ats-checker-container">
         <h1>ATS Resume Checker</h1>
         <p className="description">
