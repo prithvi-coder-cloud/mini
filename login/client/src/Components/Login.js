@@ -32,17 +32,15 @@ const Login = () => {
       const res = await axios.post(`${process.env.REACT_APP_API_URL}/login`, { email, password });
 
       if (res.data.user) {
-        // Store user data in sessionStorage with similar structure as Google login
         const userData = {
           ...res.data.user,
-          displayName: res.data.user.name, // Map name to displayName to match Google format
+          displayName: res.data.user.name,
           email: email,
           _id: res.data.user._id
         };
         
         sessionStorage.setItem('user', JSON.stringify(userData));
         sessionStorage.setItem('email', email);
-        sessionStorage.setItem('userId', res.data.user._id);
 
         // Navigate based on role
         if (res.data.user?.role === 'admin') {
@@ -52,8 +50,7 @@ const Login = () => {
         } else if (res.data.user?.role === 'course provider') {
           navigate('/course');
         } else {
-          // For regular users, navigate to Header page like Google login
-          navigate('/header');
+          navigate('/');
         }
       } else if (res.data === 'notexist') {
         alert("User doesn't exist or incorrect credentials");

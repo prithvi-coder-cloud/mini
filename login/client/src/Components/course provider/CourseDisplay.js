@@ -85,7 +85,7 @@ const CourseDisplay = () => {
                   {course.courseMaterial ? (
                     <div className="coursedisplay_material">
                       <a
-                        href={`${process.env.REACT_APP_API_URL}/${course.courseMaterial}`}
+                        href={`${process.env.REACT_APP_API_URL}${course.courseMaterial}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         download

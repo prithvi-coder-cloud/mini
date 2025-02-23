@@ -38,9 +38,6 @@ const fsPromises = require('fs').promises;
 const PDFParser = require('pdf-parse');
 const tf = require('@tensorflow/tfjs');
 const use = require('@tensorflow-models/universal-sentence-encoder');
-const helmet = require('helmet');
-const jwt = require('jsonwebtoken');
-const verifyToken = require('./middleware/auth');
 
 const clientid = process.env.CLIENT_ID;
 const clientsecret = process.env.CLIENT_SECRET;
@@ -159,14 +156,8 @@ app.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Admin login
+    // Check for admin login first
     if (email === 'admin' && password === 'admin') {
-      const token = jwt.sign(
-        { id: 'admin', email: 'admin', role: 'admin' },
-        process.env.JWT_SECRET,
-        { expiresIn: '24h' }
-      );
-      
       return res.json({ 
         msg: "exist", 
         user: {
@@ -174,30 +165,48 @@ app.post("/login", async (req, res) => {
           email: 'admin',
           role: 'admin',
           name: 'Administrator'
-        },
-        token  // Send token to client
+        }
       });
     }
 
-    // Regular user login
+    // If not admin, check regular users
     const user = await collection.findOne({ email: email });
-    if (user && await bcrypt.compare(password, user.password)) {
-      const token = jwt.sign(
-        { id: user._id, email: user.email, role: user.role },
-        process.env.JWT_SECRET,
-        { expiresIn: '24h' }
-      );
-      
-      res.json({ 
-        msg: "exist", 
-        user: {
-          _id: user._id.toString(),
-          email: user.email,
-          role: user.role,
-          name: user.name
-        },
-        token  // Send token to client
-      });
+
+    if (user) {
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (isMatch) {
+        if (user.status === 0) {
+          res.json({ msg: "Your account is disabled. Please contact support." });
+        } else {
+          res.json({ 
+            msg: "exist", 
+            user: {
+              _id: user._id.toString(),
+              email: user.email,
+              role: user.role,
+              name: user.name
+            }
+          });
+        }
+    } else {
+        res.json("notexist");
+      }
+    } else {
+      // Check if it's a Google user
+      const googleUser = await users.findOne({ email: email });
+      if (googleUser) {
+        res.json({
+          msg: "exist",
+          user: {
+            _id: googleUser._id.toString(),
+            email: googleUser.email,
+            googleId: googleUser.googleId,
+            displayName: googleUser.displayName
+          }
+        });
+      } else {
+        res.json("notexist");
+      }
     }
   } catch (error) {
     console.error('Login error:', error);
@@ -355,29 +364,51 @@ app.get("/users", async (req, res) => {
   }
 });
 
-// Create uploads directory if it doesn't exist
-const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-// Configure multer for file uploads
+// File upload configuration - Single configuration for all uploads
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, 'uploads/'); // Make sure this directory exists
+    if (!fs.existsSync('uploads')) {
+      fs.mkdirSync('uploads', { recursive: true });
+    }
+    cb(null, 'uploads/');
   },
   filename: function (req, file, cb) {
-    cb(null, Date.now() + '-' + file.originalname);
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    // Normalize the path with forward slashes
+    const filename = file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname);
+    cb(null, filename.replace(/\\/g, '/'));
   }
 });
 
-const upload = multer({ 
+// Single multer configuration for all file uploads
+const upload = multer({
   storage: storage,
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype === 'application/pdf') {
-      cb(null, true);
+  fileFilter: function (req, file, cb) {
+    console.log('Processing file:', file.fieldname, file.mimetype);
+    
+    if (file.fieldname === "courseMaterial") {
+      if (file.mimetype === "application/pdf") {
+        cb(null, true);
+      } else {
+        cb(null, false);
+        return cb(new Error('Only PDF files are allowed for course material'));
+      }
+    } else if (file.fieldname === "courseLogo" || file.fieldname === "companyLogo") {
+      if (file.mimetype.startsWith("image/")) {
+        cb(null, true);
+      } else {
+        cb(null, false);
+        return cb(new Error('Only image files are allowed for logos'));
+      }
+    } else if (file.fieldname === "resume") {  // Add this condition
+      if (file.mimetype === "application/pdf") {
+        cb(null, true);
+      } else {
+        cb(null, false);
+        return cb(new Error('Only PDF files are allowed for resumes'));
+      }
     } else {
-      cb(new Error('Only PDF files are allowed'), false);
+      return cb(new Error('Unexpected field'));
     }
   }
 });
@@ -385,47 +416,83 @@ const upload = multer({
 // Serve static files from uploads directory
 app.use('/uploads', express.static('uploads'));
 
-//Job posting route
+// Job posting endpoint
 app.post('/jobs', upload.single('companyLogo'), async (req, res) => {
   try {
-    // Check if file exists
+    console.log('Received job posting request:', req.body);
+    console.log('File:', req.file);
+
+    // Validate file upload
     if (!req.file) {
-      return res.status(400).json({ message: 'Company logo is required' });
+      return res.status(400).json({ success: false, error: 'Company logo is required' });
     }
 
-    // Create job data object
-    const jobData = {
-      companyName: req.body.companyName,
-      jobTitle: req.body.jobTitle,
-      companyLogo: `/uploads/${req.file.filename}`,
-      minPrice: Number(req.body.minPrice),
-      maxPrice: Number(req.body.maxPrice),
-      salaryType: req.body.salaryType,
-      jobLocation: req.body.jobLocation,
-      expireDate: new Date(req.body.expireDate),
-      experienceLevel: req.body.experienceLevel,
-      employmentType: req.body.employmentType,
-      description: req.body.description,
-      companyId: req.body.companyId,
+    // Normalize the file path
+    const normalizedPath = req.file.path.replace(/\\/g, '/');
+    console.log('Normalized path:', normalizedPath);
+
+    const {
+      companyName,
+      jobTitle,
+      minPrice,
+      maxPrice,
+      salaryType,
+      jobLocation,
+      expireDate,  // This is already in ISO format
+      experienceLevel,
+      employmentType,
+      description,
+      companyId
+    } = req.body;
+
+    // Basic validation
+    if (!companyName || !jobTitle || !description || !companyId) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    // Validate date
+    const expiry = new Date(expireDate);
+    if (isNaN(expiry.getTime())) {
+      return res.status(400).json({ error: 'Invalid expiry date format' });
+    }
+
+    // Create job document
+    const job = new Job({
+      companyName,
+      jobTitle,
+      companyLogo: '/uploads/' + path.basename(normalizedPath),
+      minPrice: Number(minPrice),
+      maxPrice: Number(maxPrice),
+      salaryType,
+      jobLocation,
+      expireDate: expiry,
+      experienceLevel,
+      employmentType,
+      description,
+      companyId,
       status: 1
-    };
+    });
 
-    // Create and save new job
-    const job = new Job(jobData);
+    // Save to database
     const savedJob = await job.save();
+    console.log('Job saved successfully:', savedJob);
 
-    res.status(201).json({
+    // Send success response
+    return res.status(201).json({
       success: true,
       message: 'Job posted successfully',
-      job: savedJob
+      job: {
+        ...savedJob.toObject(),
+        companyLogo: `${process.env.REACT_APP_API_URL}${savedJob.companyLogo}`
+      }
     });
 
   } catch (error) {
     console.error('Error posting job:', error);
-    res.status(500).json({
+    return res.status(500).json({ 
       success: false,
-      message: 'Failed to post job',
-      error: error.message
+      error: 'Failed to post job',
+      details: error.message 
     });
   }
 });
@@ -1125,41 +1192,76 @@ app.get('/highscorers', async (req, res) => {
 
 // Route to upload PDF and extract content
 
-app.post('/courses', upload.fields([
-  { name: 'courseMaterial', maxCount: 1 },
-  { name: 'courseLogo', maxCount: 1 }
-]), async (req, res) => {
+app.post('/courses', async (req, res) => {
   try {
-    const {
-      courseName,
-      courseTutor,
-      courseDifficulty,
-      paymentFee,
-      courseDescription,
-      mcqQuestions,
-      courseProviderId
-    } = req.body;
+    // Handle file uploads
+    upload.fields([
+      { name: 'courseMaterial', maxCount: 1 },
+      { name: 'courseLogo', maxCount: 1 }
+    ])(req, res, async function(err) {
+      if (err) {
+        console.error('Upload error:', err);
+        return res.status(400).json({ error: err.message });
+      }
 
-    // Create new course
-    const course = new Course({
-      courseProviderId,
-      courseName,
-      courseTutor,
-      courseDifficulty,
-      paymentFee,
-      courseDescription,
-      courseLogo: req.files['courseLogo'] ? 
-        `/uploads/${req.files['courseLogo'][0].filename}` : '',
-      courseMaterial: req.files['courseMaterial'] ? 
-        `/uploads/${req.files['courseMaterial'][0].filename}` : '',
-      mcqQuestions: JSON.parse(mcqQuestions)
-    });
+      try {
+        // Check if files were uploaded
+        if (!req.files || !req.files.courseMaterial || !req.files.courseLogo) {
+          return res.status(400).json({ 
+            error: 'Both course material (PDF) and course logo (image) are required' 
+          });
+        }
+
+        // Parse MCQ questions if present
+        let mcqQuestions = [];
+        if (req.body.mcqQuestions) {
+          try {
+            mcqQuestions = JSON.parse(req.body.mcqQuestions);
+          } catch (e) {
+            console.error('Error parsing MCQ questions:', e);
+            return res.status(400).json({ error: 'Invalid MCQ questions format' });
+          }
+        }
+
+        // Create new course
+        const course = new Course({
+          courseProviderId: req.body.courseProviderId,
+      courseName: req.body.courseName,
+      courseTutor: req.body.courseTutor,
+      courseDifficulty: req.body.courseDifficulty,
+          paymentFee: req.body.paymentFee,
+      courseDescription: req.body.courseDescription,
+          courseMaterial: '/uploads/' + req.files.courseMaterial[0].filename,
+          courseLogo: '/uploads/' + req.files.courseLogo[0].filename,
+          mcqQuestions: mcqQuestions
+        });
 
     await course.save();
-    res.status(201).json({ message: 'Course created successfully', course });
+
+        // Return success response with full URLs
+        res.status(201).json({
+          message: 'Course created successfully',
+          course: {
+            ...course.toObject(),
+            courseMaterial: `${process.env.REACT_APP_API_URL}${course.courseMaterial}`,
+            courseLogo: `${process.env.REACT_APP_API_URL}${course.courseLogo}`
+          }
+        });
+
   } catch (error) {
-    console.error('Error creating course:', error);
-    res.status(500).json({ error: error.message });
+        console.error('Course creation error:', error);
+        res.status(500).json({ 
+          error: 'Failed to create course',
+          details: error.message 
+        });
+      }
+    });
+  } catch (error) {
+    console.error('Outer error:', error);
+    res.status(500).json({ 
+      error: 'Server error',
+      details: error.message 
+    });
   }
 });
 
@@ -2095,7 +2197,7 @@ function normalizeSkillName(skill) {
 }
 
 // Update the recommendations endpoint
-app.post('/recommendations', verifyToken, async (req, res) => {
+app.post('/recommendations', async (req, res) => {
   try {
     const { email } = req.body;
     console.log(`\n=== Getting Recommendations for: ${email} ===\n`);
@@ -2469,7 +2571,7 @@ let model;
 })();
 
 // Improved ATS scoring endpoint
-app.post('/ats-score', verifyToken, async (req, res) => {
+app.post('/ats-score', async (req, res) => {
   try {
     const { email } = req.body;
     const profile = await Profile.findOne({ email });
@@ -2555,59 +2657,53 @@ app.post('/ats-score', verifyToken, async (req, res) => {
       const similarityScore = similarities.reduce((acc, score) => acc + score, 0) / similarities.length;
       
       // More lenient keyword density calculation
-      const keywordDensity = Math.min(1, (keywordMatches / totalKeywords) * 1.5); // 50% bonus
+      const keywordDensity = Math.min(1, (keywordMatches / totalKeywords) * 1.5); // Allow 150% scoring
       
-      // Relaxed content length scoring
+      // Content length scoring with lower requirements
       const contentLength = resumeText.length;
-      const lengthScore = Math.min(1, contentLength / 1500); // Reduced length requirement
+      const lengthScore = Math.min(1, contentLength / 1500); // Reduced from 2000
       
-      // More generous scoring formula
+      // Enhanced scoring formula with adjusted weights
       const baseScore = (
-        (similarityScore * 0.3) +      // Reduced weight on semantic relevance
-        (keywordDensity * 0.5) +       // Increased weight on keyword presence
-        (lengthScore * 0.2)            // Same weight for length
+        (similarityScore * 0.3) +      // Reduced weight for semantic relevance
+        (keywordDensity * 0.5) +       // Increased weight for keyword presence
+        (lengthScore * 0.2)            // Same weight for content length
       ) * 100;
       
-      // Enhanced bonus system
+      // More generous bonus calculations
       let bonus = 0;
       
-      // More generous keyword match bonuses
+      // Keyword match bonus with lower thresholds
       if (keywordMatches > totalKeywords * 0.3) {
-        bonus += 20;  // Increased bonus for good matches
+        bonus += 20;  // Increased bonus for moderate matches
       } else if (keywordMatches > totalKeywords * 0.2) {
-        bonus += 15;  // Added mid-tier bonus
+        bonus += 15;  // Added tier for fewer matches
       } else if (keywordMatches > 0) {
         bonus += 10;  // Base bonus for any matches
       }
       
       // Required section bonus
       if (section.required && keywordMatches > 0) {
-        bonus += 10; // Doubled from 5
+        bonus += 10;  // Increased from 5
       }
       
-      // More generous section-specific bonuses
+      // Section-specific bonuses with lower thresholds
       switch(section.name) {
         case 'experience':
-          if (keywordMatches > 4) bonus += 15;  // Reduced threshold, increased bonus
+          if (keywordMatches > 3) bonus += 15;  // Reduced threshold, increased bonus
           break;
         case 'skills':
-          if (keywordMatches > 5) bonus += 12;  // Reduced threshold, increased bonus
+          if (keywordMatches > 5) bonus += 12;  // Reduced threshold
           break;
         case 'education':
-          if (keywordMatches > 2) bonus += 10;  // Reduced threshold, increased bonus
-          break;
-        case 'contact':
-          if (keywordMatches > 1) bonus += 15;  // Added contact section bonus
+          if (keywordMatches > 2) bonus += 10;  // Reduced threshold
           break;
       }
       
-      // Higher minimum scores for required sections
-      const minimumScore = section.required ? 50 : 0;  // Increased from 40
-      
-      // Calculate final score with bonus and higher minimum threshold
+      // Calculate final score with higher minimum thresholds
       const finalScore = Math.max(
-        minimumScore,
-        Math.min(100, baseScore + bonus)
+        section.required ? 50 : 30,     // Higher minimum scores
+        Math.min(100, baseScore + bonus)  // Keep max at 100
       );
       
       return finalScore;
@@ -2695,29 +2791,22 @@ app.post('/ats-score', verifyToken, async (req, res) => {
       }
     }
 
-    // Adjust final score normalization
-    const formatMultiplier = (() => {
-      if (wordCount >= 200 && wordCount <= 800) {  // Wider acceptable range
-        return 1.25;  // Higher multiplier for acceptable length
-      } else if (wordCount > 800) {
-        return 1.1;   // Still reward longer resumes
-      } else {
-        return 1.0;   // Base multiplier for short resumes
-      }
-    })();
+    // Adjust final score normalization with more lenient multipliers
+    const formatMultiplier = wordCount >= 200 && wordCount <= 800 ? 1.2 : 1.0;  // Wider range, higher multiplier
+    totalScore = Math.min(98, Math.round(totalScore * formatMultiplier));  // Increased max score
 
-    // Adjust final score calculation
-    totalScore = Math.min(98, Math.round(totalScore * formatMultiplier)); // Increased max score
-
-    // More lenient minimum score threshold
+    // Higher minimum score threshold for complete resumes
     if (Object.values(sectionScores).every(score => score.score > 0)) {
-      totalScore = Math.max(70, totalScore); // Increased minimum score for complete resumes
+      totalScore = Math.max(75, totalScore); // Increased minimum score
     }
 
-    // Add score boosting for strong sections
-    const strongSections = Object.values(sectionScores).filter(score => score.score >= 75).length;
-    if (strongSections >= 3) {
-      totalScore = Math.min(98, totalScore + 5); // Bonus for multiple strong sections
+    // Add bonus for having all required sections
+    const hasAllRequiredSections = Object.entries(sections)
+      .filter(([_, section]) => section.required)
+      .every(([sectionName, _]) => sectionScores[sectionName]?.score > 0);
+
+    if (hasAllRequiredSections) {
+      totalScore = Math.min(98, totalScore + 5); // Bonus for complete resume
     }
 
     // Generate comprehensive feedback
@@ -2746,7 +2835,7 @@ app.post('/ats-score', verifyToken, async (req, res) => {
 });
 
 // Add this new endpoint for resume upload
-app.post('/upload-resume', verifyToken, upload.single('resume'), async (req, res) => {
+app.post('/upload-resume', upload.single('resume'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
@@ -2779,5 +2868,3 @@ app.post('/upload-resume', verifyToken, upload.single('resume'), async (req, res
     res.status(500).json({ error: 'Failed to upload resume' });
   }
 });
-
-app.use(helmet());

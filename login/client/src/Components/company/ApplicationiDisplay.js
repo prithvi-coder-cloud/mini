@@ -123,8 +123,8 @@ const ApplicationDisplay = () => {
       </header>
 
       <div className="applications-container">
-          <h2>Job Applications</h2>
-
+        <h2>Job Applications</h2>
+        
         <div className="applications-content">
           {Object.keys(groupedApplications).length === 0 ? (
             <div className="no-applications">
@@ -187,7 +187,7 @@ const ApplicationDisplay = () => {
                         <td>
                           {application.resume ? (
                             <a 
-                              href={`${process.env.REACT_APP_API_URL}/${application.resume}`} 
+                              href={`${process.env.REACT_APP_API_URL}${application.resume}`} 
                               target="_blank" 
                               rel="noopener noreferrer"
                             >

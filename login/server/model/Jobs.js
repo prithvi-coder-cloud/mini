@@ -24,7 +24,8 @@ const jobSchema = new mongoose.Schema({
   },
   salaryType: { 
     type: String, 
-    required: true 
+    required: true,
+    enum: ['hourly', 'monthly', 'yearly']
   },
   jobLocation: { 
     type: String, 
@@ -40,11 +41,13 @@ const jobSchema = new mongoose.Schema({
   },
   experienceLevel: { 
     type: String, 
-    required: true 
+    required: true,
+    enum: ['entry', 'intermediate', 'senior', 'expert']
   },
   employmentType: { 
     type: String, 
-    required: true 
+    required: true,
+    enum: ['full-time', 'part-time', 'contract', 'internship']
   },
   description: { 
     type: String, 

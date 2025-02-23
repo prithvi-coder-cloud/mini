@@ -65,7 +65,7 @@ const SideNav = ({ isOpen, toggleNav, logout, userdata }) => {
             <FaUser /> <span>Profile</span>
           </NavLink>
           
-          <NavLink to="/AtsChecker" onClick={toggleNav}>
+          <NavLink to="/AtsChecker" id ="ats-checker" onClick={toggleNav}>
             <FaChartBar /> <span>ATS Score</span>
           </NavLink>
           

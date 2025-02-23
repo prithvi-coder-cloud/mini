@@ -26,27 +26,31 @@ const Header = () => {
     return () => clearTimeout(timer);
   }, [showPopup]);
 
+  useEffect(() => {
+    const storedUser = JSON.parse(sessionStorage.getItem('user'));
+    if (storedUser) {
+      setUserdata(storedUser);
+    }
+  }, []);
+
   const getUser = async () => {
     try {
-      // Check if recommendations were already shown
-      const hasShownRecommendations = sessionStorage.getItem('hasShownRecommendations');
-      
-      // Try to get Google user data
       const response = await axios.get(`${process.env.REACT_APP_API_URL}/login/success`, { withCredentials: true });
       
       if (response.data.user) {
         setUserdata(response.data.user);
         sessionStorage.setItem('email', response.data.user.email);
-        // Only fetch profile and recommendations if not shown before
+        
+        // Check if recommendations were already shown
+        const hasShownRecommendations = sessionStorage.getItem('hasShownRecommendations');
         if (!hasShownRecommendations) {
           await fetchProfileData(response.data.user.email);
         }
       } else {
-        // If no Google user, check for normal login user
         const storedUser = JSON.parse(sessionStorage.getItem('user'));
         if (storedUser) {
           setUserdata(storedUser);
-          // Only fetch profile and recommendations if not shown before
+          const hasShownRecommendations = sessionStorage.getItem('hasShownRecommendations');
           if (!hasShownRecommendations) {
             await fetchProfileData(storedUser.email);
           }
@@ -55,23 +59,23 @@ const Header = () => {
     } catch (error) {
       console.log("error", error);
       const storedUser = JSON.parse(sessionStorage.getItem('user'));
-      if (storedUser && !sessionStorage.getItem('hasShownRecommendations')) {
+      if (storedUser) {
         setUserdata(storedUser);
-        await fetchProfileData(storedUser.email);
+        const hasShownRecommendations = sessionStorage.getItem('hasShownRecommendations');
+        if (!hasShownRecommendations) {
+          await fetchProfileData(storedUser.email);
+        }
       }
     }
   };
 
   const fetchProfileData = async (email) => {
     try {
-      console.log('Fetching profile for email:', email);
       const response = await axios.get(`${process.env.REACT_APP_API_URL}/profile?email=${email}`);
       if (response.data.profile && response.data.profile.skills) {
-        console.log('Found profile with skills:', response.data.profile.skills);
-        // Only fetch recommendations if we have skills
-        await fetchRecommendations(email);
-      } else {
-        console.log('No profile or skills found');
+        await fetchRecommendations(email); // Fetch recommendations if skills are found
+        // Set the flag to indicate recommendations have been shown
+        sessionStorage.setItem('hasShownRecommendations', 'true');
       }
     } catch (error) {
       console.error("Error fetching profile:", error);
@@ -127,7 +131,7 @@ const Header = () => {
         <nav>
           <div className="logo-container">
             {isLoggedIn() && (
-              <button className="menu-button" onClick={() => setIsSideNavOpen(true)}>
+              <button className="menu-button" id="menu" onClick={() => setIsSideNavOpen(true)}>
                 <FaBars />
               </button>
             )}
@@ -140,13 +144,13 @@ const Header = () => {
               {Object.keys(userdata).length > 0 ? (
                 <>
                   <li style={{ color: "white", fontWeight: "bold" }}>
-                    {userdata?.displayName}
+                    {userdata.displayName}
                   </li>
                   <li>
-                    <img src={userdata?.image} alt="" />
+                    <img src={userdata.image} alt="" />
                   </li>
                   <li>
-                    <span className="user-email">{userdata?.email || sessionStorage.getItem('email')}</span>
+                    <span className="user-email">{userdata.email}</span>
                   </li>
                 </>
               ) : (

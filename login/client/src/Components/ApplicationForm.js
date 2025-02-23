@@ -38,21 +38,29 @@ const ApplicationForm = () => {
   useEffect(() => {
     const getUser = async () => {
       try {
+        // First try to get Google login user data
         const response = await axios.get(`${process.env.REACT_APP_API_URL}/login/success`, { withCredentials: true });
-        setUserdata(response.data.user);
         
-        // Get email from response or sessionStorage
-        const userEmail = response.data.user.email || sessionStorage.getItem('email');
-        console.log("User email in ApplicationForm:", userEmail);
+        // Get email either from Google login response or session storage
+        let userEmail;
+        if (response.data.user) {
+          setUserdata(response.data.user);
+          userEmail = response.data.user.email;
+        } else {
+          // If no Google user, get email from session storage
+          userEmail = sessionStorage.getItem('email');
+        }
 
-        // Update formData with the email
-        setFormData(prev => ({
-          ...prev,
-          email: userEmail
-        }));
-
-        // Fetch profile data using the email
         if (userEmail) {
+          console.log("User email in ApplicationForm:", userEmail);
+
+          // Update formData with the email
+          setFormData(prev => ({
+            ...prev,
+            email: userEmail
+          }));
+
+          // Fetch profile data using the email
           try {
             const profileResponse = await axios.get(`${process.env.REACT_APP_API_URL}/profile?email=${userEmail}`);
             console.log("Profile Response:", profileResponse.data);
@@ -82,6 +90,30 @@ const ApplicationForm = () => {
         }
       } catch (error) {
         console.error("Error fetching user data:", error);
+        // If Google login fetch fails, try getting email from session storage
+        const userEmail = sessionStorage.getItem('email');
+        if (userEmail) {
+          // Repeat the profile fetching logic here
+          try {
+            const profileResponse = await axios.get(`${process.env.REACT_APP_API_URL}/profile?email=${userEmail}`);
+            if (profileResponse.data.profile) {
+              const profileData = profileResponse.data.profile;
+              setFormData(prev => ({
+                ...prev,
+                firstName: profileData.firstName || '',
+                middleName: profileData.middleName || '',
+                lastName: profileData.lastName || '',
+                phone: profileData.phoneNumber || '',
+                linkedInProfile: profileData.linkedinProfile || '',
+                city: profileData.city || '',
+                state: profileData.state || '',
+                email: userEmail
+              }));
+            }
+          } catch (profileError) {
+            console.error("Error fetching profile data:", profileError);
+          }
+        }
       }
     };
 
