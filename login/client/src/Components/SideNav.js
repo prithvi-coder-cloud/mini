@@ -12,7 +12,9 @@ import {
   FaSignOutAlt,
   FaTimes,
   FaHome,
-  FaBars
+  FaBars,
+  FaUserCheck,
+  FaUserTie
 } from 'react-icons/fa';
 
 const SideNav = ({ isOpen, toggleNav, logout, userdata }) => {
@@ -51,6 +53,10 @@ const SideNav = ({ isOpen, toggleNav, logout, userdata }) => {
           
           <NavLink to="/jobtitles" onClick={toggleNav}>
             <FaClipboardCheck /> <span>Test</span>
+          </NavLink>
+
+          <NavLink to="/interview" onClick={toggleNav}>
+            <FaUserTie /> <span>Interview</span>
           </NavLink>
           
           <NavLink to="/feedback" onClick={toggleNav}>

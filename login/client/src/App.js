@@ -56,6 +56,7 @@ import ApplicationView from './Components/ApplicationView';
 import Chatbot from './Components/ChatBot';
 import Status from './Components/admin/Status';
 import AtsChecker from './Components/AtsChecker';
+import Interview from './Components/Interview';
 function App() {
   return (
     <QuestionProvider>
@@ -112,6 +113,7 @@ function App() {
         <Route path="/Chatbot" element={<Chatbot />}/>
         <Route path="/status" element={<Status />} />
         <Route path="/AtsChecker" element={<AtsChecker />} />
+        <Route path="/interview" element={<Interview />} />
         
       </Routes>
     </QuestionProvider>

@@ -1,0 +1,74 @@
+.interview-container {
+  padding: 20px;
+  margin-top: 80px;
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.interview-list {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.interview-list h2 {
+  color: #333;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.interview-card {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid #e9ecef;
+}
+
+.interview-details h3 {
+  color: #2c3e50;
+  margin-bottom: 5px;
+}
+
+.interview-details p {
+  color: #666;
+  font-size: 14px;
+}
+
+.join-interview-btn {
+  background-color: #28a745;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  font-weight: 500;
+}
+
+.join-interview-btn:hover {
+  background-color: #218838;
+}
+
+.meeting-container {
+  width: 100%;
+  height: calc(100vh - 100px);
+  position: relative;
+}
+
+.back-btn {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 1000;
+  padding: 8px 16px;
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+} 

@@ -14,21 +14,26 @@
 .button-container {
   display: flex;
   gap: 10px;
-  flex-shrink: 0; /* Prevents buttons from shrinking */
+  align-items: center;
+  margin-bottom: 20px;
 }
 
 /* Styling for the buttons */
 .schedule-button,
-.addtest-button {
-  padding: 6px 12px;
+.addtest-button,
+.add-interview-button,
+.join-interview-button {
+  padding: 8px 16px;
   border: none;
-  border-radius: 8px;
+  border-radius: 4px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.3s ease;
-  min-width: 120px;
-  max-width: 200px;
-  white-space: nowrap; /* Prevent text wrapping */
+  font-size: 14px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .schedule-button {
@@ -41,12 +46,41 @@
   color: white;
 }
 
+.add-interview-button {
+  background-color: #6200ea;
+  color: white;
+}
+
+.join-interview-button {
+  background-color: #28a745;
+  color: white;
+}
+
+.interview-link {
+  padding: 8px 12px;
+  background-color: #e8f5e9;
+  border-radius: 4px;
+  color: #2e7d32;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  border: 1px solid #c8e6c9;
+}
+
 .schedule-button:hover {
-  background-color: #45a049;
+  background-color: #43a047;
 }
 
 .addtest-button:hover {
-  background-color: #1976D2;
+  background-color: #1e88e5;
+}
+
+.add-interview-button:hover {
+  background-color: #5000d6;
+}
+
+.join-interview-button:hover {
+  background-color: #218838;
 }
 
 /* Interview date display */
@@ -231,37 +265,11 @@ button:focus {
   margin-bottom: 30px;
 }
 
-.button-container {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
-}
-
-.schedule-button,
-.addtest-button {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 4px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.schedule-button {
-  background-color: #4CAF50;
-  color: white;
-}
-
-.addtest-button {
-  background-color: #2196F3;
-  color: white;
-}
-
 .interview-schedule {
   padding: 8px 12px;
   background-color: #f5f5f5;
   border-radius: 4px;
-  margin-left: 10px;
+  font-size: 14px;
 }
 
 .applications-table {

@@ -13,6 +13,7 @@ const ApplicationDisplay = () => {
   const [selectedJobTitle, setSelectedJobTitle] = useState(null);
   const [selectedApplications, setSelectedApplications] = useState([]);
   const [interviewSchedules, setInterviewSchedules] = useState({});
+  const [interviewLinks, setInterviewLinks] = useState({});
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -104,6 +105,35 @@ const ApplicationDisplay = () => {
     }));
   };
 
+  const handleAddInterview = async (jobTitle, applications) => {
+    try {
+      const emails = applications.map(app => app.email);
+      const roomName = `interview-${jobTitle.replace(/\s+/g, '-')}-${Date.now()}`;
+      
+      const response = await axios.post(`${process.env.REACT_APP_API_URL}/create-interview`, {
+        jobTitle,
+        emails,
+        roomName
+      });
+
+      if (response.data.success) {
+        setInterviewLinks(prev => ({
+          ...prev,
+          [jobTitle]: roomName
+        }));
+        alert('Interview has been created and notifications sent to candidates');
+      }
+    } catch (error) {
+      console.error('Error creating interview:', error);
+      alert('Failed to create interview session');
+    }
+  };
+
+  // Add this new function to handle joining the interview
+  const handleJoinInterview = (roomName) => {
+    window.open(`https://meet.jit.si/${roomName}`, '_blank');
+  };
+
   if (loading) return <div className="loading">Loading applications...</div>;
   if (error) return <div className="error">{error}</div>;
 
@@ -147,6 +177,20 @@ const ApplicationDisplay = () => {
                   >
                     Add Test
                   </button>
+                  <button 
+                    className="add-interview-button" 
+                    onClick={() => handleAddInterview(jobTitle, groupedApplications[jobTitle])}
+                  >
+                    Add Interview
+                  </button>
+                  {interviewLinks[jobTitle] && (
+                    <button 
+                      className="join-interview-button"
+                      onClick={() => handleJoinInterview(interviewLinks[jobTitle])}
+                    >
+                      Attend Interview
+                    </button>
+                  )}
                   {interviewSchedules[jobTitle] && (
                     <div className="interview-schedule">
                       Interview Scheduled: {new Date(interviewSchedules[jobTitle]).toLocaleString()}

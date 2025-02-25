@@ -19,6 +19,7 @@ const Job = require("./model/Jobs");
 const Test = require('./model/Test');
 const Score = require("./model/Score"); // Import the Score model
 const Selection = require("./model/Selection"); // Import the Selection model
+const Interview = require("./model/Interview"); // Add this line
 const cron = require('node-cron');
 
 const nodemailer = require('nodemailer');
@@ -894,14 +895,53 @@ app.delete('/applications/:id', async (req, res) => {
 
     console.log(`Deleting application with ID: ${id}`);
 
-    // Delete the application from the database
-    const result = await Application.findByIdAndDelete(id);
+    // Get application details before deleting
+    const application = await Application.findById(id).populate('jobId');
 
-    if (!result) {
+    if (!application) {
       return res.status(404).json({ message: 'Application not found.' });
     }
 
-    res.status(200).json({ message: 'Application deleted successfully.' });
+    // Delete the application
+    await Application.findByIdAndDelete(id);
+
+    // Send rejection email
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL,
+        pass: process.env.PASSWORD,
+      },
+    });
+
+    const mailOptions = {
+      from: process.env.EMAIL,
+      to: application.email,
+      subject: `Update Regarding Your Application for ${application.jobId.jobTitle}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <p>Dear ${application.firstName},</p>
+          
+          <p>Thank you for your interest in the ${application.jobId.jobTitle} position at ${application.jobId.companyName} and for taking the time to go through our application process.</p>
+          
+          <p>After careful consideration of your application and the requirements for this role, we regret to inform you that we have decided to move forward with other candidates whose qualifications more closely match our current needs.</p>
+          
+          <p>Please note that this decision does not reflect on your capabilities or potential. We encourage you to apply for future positions that align with your skills and experience, as our organization continues to grow.</p>
+          
+          <p>We appreciate your understanding and wish you the very best in your career journey.</p>
+          
+          <p>Best regards,<br>
+          The Recruitment Team<br>
+          ${application.jobId.companyName}</p>
+        </div>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.status(200).json({ 
+      message: 'Application deleted and rejection email sent successfully.' 
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Internal server error' });
@@ -2866,5 +2906,76 @@ app.post('/upload-resume', upload.single('resume'), async (req, res) => {
   } catch (error) {
     console.error('Error uploading resume:', error);
     res.status(500).json({ error: 'Failed to upload resume' });
+  }
+});
+
+// Create interview session
+app.post('/create-interview', async (req, res) => {
+  try {
+    const { jobTitle, emails, roomName } = req.body;
+
+    // Create interview record
+    const interview = new Interview({
+      jobTitle,
+      emails,
+      roomName,
+      createdAt: new Date()
+    });
+
+    await interview.save();
+
+    // Send email notifications to all candidates
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL,
+        pass: process.env.PASSWORD,
+      },
+    });
+
+    const emailPromises = emails.map(email => {
+      const mailOptions = {
+        from: process.env.EMAIL,
+        to: email,
+        subject: `Interview Invitation for ${jobTitle}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; padding: 20px;">
+            <h2>Interview Invitation</h2>
+            <p>You have been invited for an interview for the position of ${jobTitle}.</p>
+            <p>Please check your Interview section in the application to join the interview.</p>
+            <p>Make sure to:</p>
+            <ul>
+              <li>Test your camera and microphone before joining</li>
+              <li>Find a quiet place for the interview</li>
+              <li>Have a stable internet connection</li>
+            </ul>
+            <p>Best regards,<br>The Recruitment Team</p>
+          </div>
+        `
+      };
+      return transporter.sendMail(mailOptions);
+    });
+
+    await Promise.all(emailPromises);
+
+    res.json({ success: true, message: 'Interview created and notifications sent' });
+  } catch (error) {
+    console.error('Error creating interview:', error);
+    res.status(500).json({ success: false, error: 'Failed to create interview' });
+  }
+});
+
+// Get interviews for a specific email
+app.get('/interviews', async (req, res) => {
+  try {
+    const { email } = req.query;
+    const interviews = await Interview.find({ 
+      emails: email,
+      createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } // Last 24 hours
+    });
+    res.json(interviews);
+  } catch (error) {
+    console.error('Error fetching interviews:', error);
+    res.status(500).json({ error: 'Failed to fetch interviews' });
   }
 });
