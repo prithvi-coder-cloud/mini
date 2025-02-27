@@ -47,12 +47,17 @@ const JobTitles = () => {
     navigate(`/test/${jobTitle}`);
   };
 
-  const getJobTitleButtonState = (jobTitle) => {
+  const isTestSubmitted = (jobTitle) => {
     const email = sessionStorage.getItem('email');
     if (!email) return false;
 
-    const submittedJobTitles = JSON.parse(sessionStorage.getItem('submittedJobTitles')) || {};
-    return submittedJobTitles[email] ? submittedJobTitles[email].includes(jobTitle) : false;
+    try {
+      const submittedTests = JSON.parse(sessionStorage.getItem('submittedTests')) || {};
+      return submittedTests[email] && submittedTests[email].includes(jobTitle);
+    } catch (error) {
+      console.error('Error checking test submission status:', error);
+      return false;
+    }
   };
 
   return (
@@ -113,9 +118,9 @@ const JobTitles = () => {
                     <button
                       className="job-title-button"
                       onClick={() => handleJobTitleClick(job.jobTitle)}
-                      disabled={getJobTitleButtonState(job.jobTitle)}
+                      disabled={isTestSubmitted(job.jobTitle)}
                     >
-                      Attend Exam
+                      {isTestSubmitted(job.jobTitle) ? 'Test Completed' : 'Attend Exam'}
                     </button>
                   </div>
                 </div>

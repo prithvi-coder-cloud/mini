@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './Interview.css';
+import Header from './Header';
 
 const Interview = () => {
   const [interviews, setInterviews] = useState([]);
@@ -31,6 +32,9 @@ const Interview = () => {
   };
 
   return (
+    <div>
+    <Header />
+
     <div className="interview-container">
       <div className="interview-list">
         <h2>Your Interviews</h2>
@@ -54,6 +58,8 @@ const Interview = () => {
         )}
       </div>
     </div>
+    </div>
+
   );
 };
 

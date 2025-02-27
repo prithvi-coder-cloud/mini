@@ -37,8 +37,7 @@ const TestDisplay = () => {
     });
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     if (!window.confirm('Do you want to submit this test?')) {
       return;
     }
@@ -46,30 +45,42 @@ const TestDisplay = () => {
     const storedEmail = sessionStorage.getItem('email');
     setEmail(storedEmail);
 
-    const submitData = { 
-      email: storedEmail, 
-      jobTitle, 
-      selectedOptions,
+    const submitData = {
+      email: storedEmail,
+      jobTitle: jobTitle,
+      selectedOptions: selectedOptions,
       companyId: test.companyId
     };
 
     try {
-      await axios.post(`${process.env.REACT_APP_API_URL}/submitTest`, submitData);
+      const response = await axios.post(`${process.env.REACT_APP_API_URL}/submitTest`, submitData);
 
-      // Show success popup
-      setShowPopup(true);
+      if (response.data.success) {
+        // Store the completed test in session storage
+        if (storedEmail) {
+          const submittedTests = JSON.parse(sessionStorage.getItem('submittedTests')) || {};
+          if (!submittedTests[storedEmail]) {
+            submittedTests[storedEmail] = [];
+          }
+          // Add the current test to submitted tests if not already included
+          if (!submittedTests[storedEmail].includes(jobTitle)) {
+            submittedTests[storedEmail].push(jobTitle);
+            sessionStorage.setItem('submittedTests', JSON.stringify(submittedTests));
+          }
+        }
 
-      // Mark the test as submitted in sessionStorage
-      const submittedJobTitles = JSON.parse(sessionStorage.getItem('submittedJobTitles')) || {};
-      if (!submittedJobTitles[storedEmail]) {
-        submittedJobTitles[storedEmail] = [];
-      }
-      if (!submittedJobTitles[storedEmail].includes(jobTitle)) {
-        submittedJobTitles[storedEmail].push(jobTitle);
-        sessionStorage.setItem('submittedJobTitles', JSON.stringify(submittedJobTitles));
+        // Show success popup
+        setShowPopup(true);
+
+        // Wait for 3 seconds before navigating back
+        setTimeout(() => {
+          navigate('/jobtitles'); // Navigate back to job titles page
+        }, 3000);
+      } else {
+        setError('Failed to submit test.');
       }
     } catch (error) {
-      console.error('Error submitting test:', error.response ? error.response.data : error);
+      console.error('Error submitting test:', error);
       setError('Error submitting test.');
     }
   };
