@@ -37,36 +37,53 @@ const TestDisplay = () => {
     });
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e) => {
+    e.preventDefault(); // Prevent form default submission
+    
     if (!window.confirm('Do you want to submit this test?')) {
       return;
     }
 
     const storedEmail = sessionStorage.getItem('email');
-    setEmail(storedEmail);
+    if (!storedEmail) {
+      setError('User email not found. Please login again.');
+      return;
+    }
+
+    // Check if all questions are answered
+    const totalQuestions = test.questions.length;
+    const answeredQuestions = Object.keys(selectedOptions).length;
+    
+    if (answeredQuestions < totalQuestions) {
+      setError('Please answer all questions before submitting.');
+      return;
+    }
 
     const submitData = {
       email: storedEmail,
       jobTitle: jobTitle,
-      selectedOptions: selectedOptions,
+      answers: selectedOptions,
       companyId: test.companyId
     };
 
     try {
-      const response = await axios.post(`${process.env.REACT_APP_API_URL}/submitTest`, submitData);
+      console.log('Submitting test data:', submitData); // Debug log
+
+      const response = await axios.post(
+        `${process.env.REACT_APP_API_URL}/submitTest`, 
+        submitData,
+        { headers: { 'Content-Type': 'application/json' } }
+      );
 
       if (response.data.success) {
         // Store the completed test in session storage
-        if (storedEmail) {
-          const submittedTests = JSON.parse(sessionStorage.getItem('submittedTests')) || {};
-          if (!submittedTests[storedEmail]) {
-            submittedTests[storedEmail] = [];
-          }
-          // Add the current test to submitted tests if not already included
-          if (!submittedTests[storedEmail].includes(jobTitle)) {
-            submittedTests[storedEmail].push(jobTitle);
-            sessionStorage.setItem('submittedTests', JSON.stringify(submittedTests));
-          }
+        const submittedTests = JSON.parse(sessionStorage.getItem('submittedTests')) || {};
+        if (!submittedTests[storedEmail]) {
+          submittedTests[storedEmail] = [];
+        }
+        if (!submittedTests[storedEmail].includes(jobTitle)) {
+          submittedTests[storedEmail].push(jobTitle);
+          sessionStorage.setItem('submittedTests', JSON.stringify(submittedTests));
         }
 
         // Show success popup
@@ -74,14 +91,14 @@ const TestDisplay = () => {
 
         // Wait for 3 seconds before navigating back
         setTimeout(() => {
-          navigate('/jobtitles'); // Navigate back to job titles page
+          navigate('/jobtitles');
         }, 3000);
       } else {
-        setError('Failed to submit test.');
+        setError(response.data.message || 'Failed to submit test.');
       }
     } catch (error) {
       console.error('Error submitting test:', error);
-      setError('Error submitting test.');
+      setError(error.response?.data?.message || 'Error submitting test. Please try again.');
     }
   };
 

@@ -1070,38 +1070,78 @@ app.get('/test/:jobTitle', async (req, res) => {
 });
 
 app.post('/submitTest', async (req, res) => {
-  const { email, jobTitle, selectedOptions, companyId } = req.body;
-
-  if (!email || !jobTitle || !selectedOptions || !companyId) {
-    return res.status(400).json({ message: 'Email, job title, selected options, and companyId are required.' });
-  }
-
   try {
-    const test = await Test.findOne({ jobTitle });
-    if (!test) {
-      return res.status(404).json({ message: 'Test not found' });
+    const { email, jobTitle, answers, companyId } = req.body;
+    
+    console.log('Received test submission:', { email, jobTitle, answers, companyId }); // Debug log
+
+    // Validate required fields
+    if (!email || !jobTitle || !answers || !companyId) {
+      console.log('Missing fields:', { email, jobTitle, answers, companyId }); // Debug log
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Missing required fields',
+        received: { email, jobTitle, hasAnswers: !!answers, companyId }
+      });
     }
 
-    let score = 0;
+    // Get the test to check answers
+    const test = await Test.findOne({ jobTitle, companyId });
+    if (!test) {
+      console.log('Test not found for:', { jobTitle, companyId }); // Debug log
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Test not found' 
+      });
+    }
+
+    // Calculate score
+    let correctAnswers = 0;
+    let totalQuestions = test.questions.length;
+
+    console.log('Checking answers:', {
+      submitted: answers,
+      correct: test.questions.map(q => ({ [q.questionNumber]: q.correctAnswer }))
+    }); // Debug log
+
     test.questions.forEach(question => {
-      if (selectedOptions[question.questionNumber] === question.correctAnswer) {
-        score += 1;
+      const submittedAnswer = answers[question.questionNumber];
+      const correctAnswer = question.correctAnswer;
+      
+      if (submittedAnswer === correctAnswer) {
+        correctAnswers++;
       }
     });
 
+    const score = Math.round((correctAnswers / totalQuestions) * 100);
+
+    // Save the score
     const newScore = new Score({
       email,
       jobTitle,
       score,
-      totalQuestions: test.questions.length,
+      totalQuestions,
       companyId
     });
 
-    const savedScore = await newScore.save();
-    res.status(201).json(savedScore);
+    await newScore.save();
+    console.log('Score saved:', { email, jobTitle, score }); // Debug log
+
+    res.json({ 
+      success: true, 
+      message: 'Test submitted successfully',
+      score,
+      correctAnswers,
+      totalQuestions
+    });
+
   } catch (error) {
     console.error('Error submitting test:', error);
-    res.status(500).json({ error: 'Error submitting test.' });
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error submitting test',
+      error: error.message 
+    });
   }
 });
 
