@@ -1069,15 +1069,16 @@ app.get('/test/:jobTitle', async (req, res) => {
   }
 });
 
+// Update the submitTest endpoint
 app.post('/submitTest', async (req, res) => {
   try {
     const { email, jobTitle, answers, companyId } = req.body;
     
-    console.log('Received test submission:', { email, jobTitle, answers, companyId }); // Debug log
+    console.log('Received test submission:', { email, jobTitle, answers, companyId });
 
     // Validate required fields
     if (!email || !jobTitle || !answers || !companyId) {
-      console.log('Missing fields:', { email, jobTitle, answers, companyId }); // Debug log
+      console.log('Missing fields:', { email, jobTitle, answers, companyId });
       return res.status(400).json({ 
         success: false, 
         message: 'Missing required fields',
@@ -1088,50 +1089,47 @@ app.post('/submitTest', async (req, res) => {
     // Get the test to check answers
     const test = await Test.findOne({ jobTitle, companyId });
     if (!test) {
-      console.log('Test not found for:', { jobTitle, companyId }); // Debug log
+      console.log('Test not found for:', { jobTitle, companyId });
       return res.status(404).json({ 
         success: false, 
         message: 'Test not found' 
       });
     }
 
-    // Calculate score
-    let correctAnswers = 0;
-    let totalQuestions = test.questions.length;
+    // Calculate score - each question carries 1 mark
+    let score = 0;
+    const totalQuestions = test.questions.length;
 
     console.log('Checking answers:', {
       submitted: answers,
       correct: test.questions.map(q => ({ [q.questionNumber]: q.correctAnswer }))
-    }); // Debug log
+    });
 
     test.questions.forEach(question => {
       const submittedAnswer = answers[question.questionNumber];
       const correctAnswer = question.correctAnswer;
       
       if (submittedAnswer === correctAnswer) {
-        correctAnswers++;
+        score += 1; // Each correct answer gets 1 mark
       }
     });
 
-    const score = Math.round((correctAnswers / totalQuestions) * 100);
-
-    // Save the score
+    // Save the raw score (not percentage)
     const newScore = new Score({
       email,
       jobTitle,
-      score,
+      score, // This is now out of total questions, not percentage
       totalQuestions,
       companyId
     });
 
     await newScore.save();
-    console.log('Score saved:', { email, jobTitle, score }); // Debug log
+    console.log('Score saved:', { email, jobTitle, score, totalQuestions });
 
     res.json({ 
       success: true, 
       message: 'Test submitted successfully',
       score,
-      correctAnswers,
       totalQuestions
     });
 
@@ -1186,22 +1184,53 @@ app.get('/jobtitles', async (req, res) => {
 
 
 app.get('/highscorers', async (req, res) => {
-  const { companyId } = req.query; // Get companyId from query params
-
   try {
-    // Find scores only for this company
+    const { companyId } = req.query;
+    
+    // Get all scores for this company
     const scores = await Score.find({ companyId });
-
-    const highScorers = scores.filter(user => user.score >= (user.totalQuestions / 2));
-
-    res.json(highScorers.map(user => ({
-      email: user.email,
-      jobTitle: user.jobTitle,
-      score: user.score,
-    })));
+    
+    // Group scores by jobTitle to get the test details
+    const scoresByJob = {};
+    for (const score of scores) {
+      if (!scoresByJob[score.jobTitle]) {
+        // Get the test to know total questions
+        const test = await Test.findOne({ jobTitle: score.jobTitle, companyId });
+        if (test) {
+          scoresByJob[score.jobTitle] = {
+            totalQuestions: test.questions.length,
+            scores: []
+          };
+        }
+      }
+      
+      if (scoresByJob[score.jobTitle]) {
+        // Only include scores above 50%
+        const passingScore = scoresByJob[score.jobTitle].totalQuestions * 0.5;
+        if (score.score >= passingScore) {
+          scoresByJob[score.jobTitle].scores.push(score);
+        }
+      }
+    }
+    
+    // Flatten and format the results
+    const highScorers = [];
+    for (const [jobTitle, data] of Object.entries(scoresByJob)) {
+      data.scores.forEach(score => {
+        highScorers.push({
+          email: score.email,
+          jobTitle,
+          score: score.score, // Raw score out of total questions
+          totalQuestions: data.totalQuestions
+        });
+      });
+    }
+    
+    res.json(highScorers);
+    
   } catch (error) {
     console.error('Error fetching high scorers:', error);
-    res.status(500).json({ error: 'Error fetching high scorers' });
+    res.status(500).json({ error: 'Failed to fetch high scorers' });
   }
 });
 
@@ -1437,7 +1466,7 @@ app.post('/generate-quiz', quizUpload.single('pdfFile'), async (req, res) => {
     }
     
     // Generate questions using Gemini
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
     
     const prompt = `You are a quiz generator. Generate exactly 5 multiple choice questions based on this content:
     "${pdfText.text.substring(0, 5000)}".
@@ -2213,7 +2242,7 @@ function parseSkills(skillsSection) {
 const extractSkillsUsingGemini = async (resumeText) => {
   try {
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
 
     const prompt = `
       Analyze this resume text and extract a list of technical skills and technologies.
@@ -2460,7 +2489,7 @@ app.post('/chatbot', async (req, res) => {
     }
 
     // Use Gemini for more complex queries
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
     const prompt = `
       Context: ${contextData}
       User Question: ${message}
