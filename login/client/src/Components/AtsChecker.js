@@ -111,6 +111,7 @@ const AtsChecker = () => {
         
         <button 
           className="analyze-button"
+          id="analyze-button"
           onClick={checkAtsScore}
           disabled={loading}
         >

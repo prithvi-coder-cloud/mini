@@ -131,7 +131,11 @@ const Header = () => {
         <nav>
           <div className="logo-container">
             {isLoggedIn() && (
-              <button className="menu-button" id="menu" onClick={() => setIsSideNavOpen(true)}>
+              <button 
+                className="menu-button" 
+                id="menu-button"
+                onClick={() => setIsSideNavOpen(true)}
+              >
                 <FaBars />
               </button>
             )}
