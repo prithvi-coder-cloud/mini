@@ -8,6 +8,7 @@ const SelectedCandidates = () => {
   const [selectedCandidates, setSelectedCandidates] = useState([]);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [interviewLinks, setInterviewLinks] = useState({});
   const navigate = useNavigate();
   const user = sessionStorage.getItem('user');
 
@@ -42,16 +43,32 @@ const SelectedCandidates = () => {
     }
   };
 
-  const handleSendInvitation = async (jobTitle) => {
+  const handleAddInterview = async (jobTitle, candidates) => {
     try {
-      const response = await axios.post(`${process.env.REACT_APP_API_URL}/send-invitations`, { jobTitle });
+      const emails = candidates.map(candidate => candidate.email);
+      const roomName = `interview-${jobTitle.replace(/\s+/g, '-')}-${Date.now()}`;
+      
+      const response = await axios.post(`${process.env.REACT_APP_API_URL}/create-interview`, {
+        jobTitle,
+        emails,
+        roomName
+      });
+
       if (response.data.success) {
-        alert(`Invitations sent successfully for ${jobTitle}`);
+        setInterviewLinks(prev => ({
+          ...prev,
+          [jobTitle]: roomName
+        }));
+        alert('Interview has been created and notifications sent to candidates');
       }
     } catch (error) {
-      console.error('Error sending invitations:', error);
-      alert('Error sending invitations.');
+      console.error('Error creating interview:', error);
+      alert('Failed to create interview session');
     }
+  };
+
+  const handleJoinInterview = (roomName) => {
+    window.open(`https://meet.jit.si/${roomName}`, '_blank');
   };
 
   if (loading) return <div>Loading...</div>;
@@ -82,12 +99,22 @@ const SelectedCandidates = () => {
             <div key={jobTitle} className="job-title-section">
               <h3>
                 <span>{jobTitle}</span>
-                <button 
-                  onClick={() => handleSendInvitation(jobTitle)} 
-                  className="send-invitation-button"
-                >
-                  Send Invitation
-                </button>
+                <div className="button-group">
+                  <button 
+                    onClick={() => handleAddInterview(jobTitle, groupedByJobTitle[jobTitle])} 
+                    className="add-interview-button"
+                  >
+                    Add Interview
+                  </button>
+                  {interviewLinks[jobTitle] && (
+                    <button 
+                      className="join-interview-button"
+                      onClick={() => handleJoinInterview(interviewLinks[jobTitle])}
+                    >
+                      Attend Interview
+                    </button>
+                  )}
+                </div>
               </h3>
               <table className="selected-candidates-table">
                 <thead>
