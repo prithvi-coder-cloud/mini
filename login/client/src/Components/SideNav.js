@@ -43,7 +43,9 @@ const SideNav = ({ isOpen, toggleNav, logout, userdata }) => {
             <FaHome /> <span>Home</span>
           </NavLink>
           
-          <NavLink to="/Dashboard" onClick={toggleNav}>
+          <NavLink to="/Dashboard"  
+            id="ApplyJob" 
+            onClick={toggleNav}>
             <FaBriefcase /> <span>Apply for Job</span>
           </NavLink>
           
