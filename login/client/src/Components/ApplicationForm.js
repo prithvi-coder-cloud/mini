@@ -240,16 +240,9 @@ const ApplicationForm = () => {
     }
   };
 
-  const isDisabled = (field) => {
-    const fieldsOrder = [
-      'firstName', 'middleName', 'lastName', 'birthDate',
-      'street', 'city', 'state', 'zipCode',
-      'phone', 'linkedInProfile', 'resume'
-    ];
-    const currentIndex = fieldsOrder.indexOf(field);
-    return !fieldsOrder.slice(0, currentIndex).every(
-      (prevField) => !errors[prevField] && formData[prevField]
-    );
+  const isDisabled = (fieldName) => {
+    // Return false for all fields to make them always editable
+    return false;
   };
 
   return (
@@ -291,7 +284,6 @@ const ApplicationForm = () => {
             onChange={handleChange}
             onBlur={handleBlur}
             placeholder="Middle Name"
-            disabled={isDisabled('middleName')}
           />
         </div>
 
@@ -306,7 +298,6 @@ const ApplicationForm = () => {
             onBlur={handleBlur}
             placeholder="Last Name"
             required
-            disabled={isDisabled('lastName')}
           />
           {errors.lastName && <span className="error">{errors.lastName}</span>}
         </div>
@@ -314,15 +305,15 @@ const ApplicationForm = () => {
         <div className="form-group">
           <label>Birth Date</label>
           <input
-            id='r'
+            id="birth-date-input"
             type="date"
             name="birthDate"
             value={formData.birthDate}
             onChange={handleChange}
             onBlur={handleBlur}
-            min={minDate} max={maxDate}
+            min={minDate}
+            max={maxDate}
             required
-            disabled={isDisabled('birthDate')}
           />
           {errors.birthDate && <span className="error">{errors.birthDate}</span>}
         </div>
@@ -330,7 +321,7 @@ const ApplicationForm = () => {
         <div className="form-group">
           <label>Street</label>
           <input
-            id='s'
+            id="street-input"
             type="text"
             name="street"
             value={formData.street}
@@ -338,7 +329,6 @@ const ApplicationForm = () => {
             onBlur={handleBlur}
             placeholder="Street"
             required
-            disabled={isDisabled('street')}
           />
           {errors.street && <span className="error">{errors.street}</span>}
         </div>
@@ -354,7 +344,6 @@ const ApplicationForm = () => {
             onBlur={handleBlur}
             placeholder="City"
             required
-            disabled={isDisabled('city')}
           />
           {errors.city && <span className="error">{errors.city}</span>}
         </div>
@@ -370,7 +359,6 @@ const ApplicationForm = () => {
             onBlur={handleBlur}
             placeholder="State"
             required
-            disabled={isDisabled('state')}
           />
           {errors.state && <span className="error">{errors.state}</span>}
         </div>
@@ -378,7 +366,7 @@ const ApplicationForm = () => {
         <div className="form-group">
           <label>Zip Code</label>
           <input
-            id='v'
+            id="zipcode-input"
             type="text"
             name="zipCode"
             value={formData.zipCode}
@@ -386,7 +374,6 @@ const ApplicationForm = () => {
             onBlur={handleBlur}
             placeholder="Zip Code"
             required
-            disabled={isDisabled('zipCode')}
           />
           {errors.zipCode && <span className="error">{errors.zipCode}</span>}
         </div>
@@ -394,7 +381,7 @@ const ApplicationForm = () => {
         <div className="form-group">
           <label>Email</label>
           <input
-            id='w'
+            id="email-input"
             type="email"
             name="email"
             value={formData.email}
@@ -402,7 +389,7 @@ const ApplicationForm = () => {
             onBlur={handleBlur}
             placeholder="Email"
             required
-            disabled={true} // Make email field readonly since it's populated automatically
+            disabled={true}
           />
           {errors.email && <span className="error">{errors.email}</span>}
         </div>
@@ -418,7 +405,6 @@ const ApplicationForm = () => {
             onBlur={handleBlur}
             placeholder="Phone"
             required
-            disabled={isDisabled('phone')}
           />
           {errors.phone && <span className="error">{errors.phone}</span>}
         </div>
@@ -433,26 +419,28 @@ const ApplicationForm = () => {
             onChange={handleChange}
             onBlur={handleBlur}
             placeholder="LinkedIn Profile"
-            disabled={isDisabled('linkedInProfile')}
           />
         </div>
 
         <div className="form-group">
           <label>Resume (PDF only)</label>
           <input
-            id='z'
+            id="resume-upload"
             type="file"
             name="resume"
             accept="application/pdf"
             onChange={handleFileChange}
             required
-            disabled={isDisabled('resume')}
           />
           {errors.resume && <span className="error">{errors.resume}</span>}
         </div>
 
         <div className="form-group">
-          <button type="submit" disabled={isSubmitting || !resume || Object.keys(errors).some((key) => errors[key])}>
+          <button 
+            type="submit" 
+            id="submit-application"
+            disabled={isSubmitting || !resume || Object.keys(errors).some((key) => errors[key])}
+          >
             {isSubmitting ? 'Submitting...' : 'Submit Application'}
           </button>
         </div>

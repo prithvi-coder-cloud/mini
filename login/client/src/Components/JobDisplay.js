@@ -91,7 +91,11 @@ const JobDisplay = () => {
             </div>
           </div>
 
-          <button onClick={apply} className="apply-button">
+          <button 
+            onClick={apply} 
+            className="apply-button"
+            id="apply-now-button"
+          >
             Apply Now
           </button>
         </div>

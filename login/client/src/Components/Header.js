@@ -179,20 +179,21 @@ const Header = () => {
 
       {showPopup && recommendations.length > 0 && (
         <>
-          <div className="popup-backdrop" />
-          <div className="recommendation-popup">
-            <h3>Recommended Courses Based on Your Skills</h3>
-            <ul>
-              {recommendations.map((recommendation, index) => (
-                <li key={index}>{recommendation}</li>
-              ))}
-            </ul>
-            <div className="progress-container">
-              <div 
-                className="progress-bar"
-                onAnimationEnd={() => setShowPopup(false)}
-                style={{ willChange: 'width' }}
-              />
+          <div className="popup-backdrop" id="recommendation-popup-backdrop">
+            <div className="recommendation-popup">
+              <h3>Recommended Courses Based on Your Skills</h3>
+              <ul>
+                {recommendations.map((recommendation, index) => (
+                  <li key={index}>{recommendation}</li>
+                ))}
+              </ul>
+              <div className="progress-container">
+                <div 
+                  className="progress-bar"
+                  onAnimationEnd={() => setShowPopup(false)}
+                  style={{ willChange: 'width' }}
+                />
+              </div>
             </div>
           </div>
         </>

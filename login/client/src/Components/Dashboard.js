@@ -279,7 +279,12 @@ const Dashboard = () => {
                   </div>
                   <p className="job-description">{job.description.substring(0, 150)}...</p>
                   <div className="job-card-footer">
-                    <button className="view-details-button" onClick={() => viewJobDetails(job)}>
+                    <button 
+                      className="view-details-button" 
+                      id={`view-details-${job.companyName.toLowerCase()}`}
+                      data-testid="view-details-button"
+                      onClick={() => viewJobDetails(job)}
+                    >
                       View Details
                     </button>
                   </div>
