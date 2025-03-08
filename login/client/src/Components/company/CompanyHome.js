@@ -54,7 +54,7 @@ const CompanyHome = () => {
               <NavLink to="/viewjobs" className='course-nav-link'>View Posted Job</NavLink>
             </li>
             <li>
-              <NavLink to="/applicationd" className='course-nav-link'>Applications</NavLink>
+              <NavLink to="/applicationd" id="application" className='course-nav-link'>Applications</NavLink>
             </li>
             <li>
               <NavLink to="/highscorers" className='course-nav-link'>Eligible Candidates</NavLink>

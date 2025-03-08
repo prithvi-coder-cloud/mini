@@ -87,6 +87,7 @@ const DateTimeModal = ({ isOpen, onRequestClose, applications, jobTitle, onSched
           <label>Date:</label>
           <input
             type="date"
+            id="date"
             value={selectedDate}
             onChange={handleDateChange}
             required
@@ -96,12 +97,13 @@ const DateTimeModal = ({ isOpen, onRequestClose, applications, jobTitle, onSched
           <label>Time:</label>
           <input
             type="time"
+            id="time"
             value={selectedTime}
             onChange={handleTimeChange}
             required
           />
         </div>
-        <button type="submit">Send Invite</button>
+        <button type="submit" id="submit">Send Invite</button>
       </form>
     </Modal>
   );

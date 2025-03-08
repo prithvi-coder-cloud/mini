@@ -166,7 +166,7 @@ const ApplicationDisplay = () => {
                 <h3>{jobTitle}</h3>
                 <div className="button-container">
                   <button 
-                    className="schedule-button" 
+                    className="schedule-button" id="schedule"
                     onClick={() => handleSchedule(jobTitle, groupedApplications[jobTitle])}
                   >
                     Schedule Interview

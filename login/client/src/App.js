@@ -57,6 +57,8 @@ import Chatbot from './Components/ChatBot';
 import Status from './Components/admin/Status';
 import AtsChecker from './Components/AtsChecker';
 import Interview from './Components/Interview';
+import AdminRoute from './Components/AdminRoute';
+
 function App() {
   return (
     <QuestionProvider>
@@ -73,19 +75,15 @@ function App() {
         <Route path="/forgotpass" element={<ForgotPassword />} />
         <Route path="/verifycode" element={<VerifyCode />} />
         <Route path="/jobposting" element={<JobPostingForm />} />
-        <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
-        <Route path="/userdetails" element={<UserDetails />} />
         <Route path="/updateuser" element={<UpdateUser />} />
         <Route path="/home1" element={<ProtectedRoute><Home1 /></ProtectedRoute>} />
         <Route path="/header1" element={<Header1 />} />
-        <Route path="/addcompany" element={<AddCompany />} />
         <Route path="/companyhome" element={<ProtectedRoute><CompanyHome /></ProtectedRoute>} />
         <Route path="/viewjobs" element={<ViewJobs />} />
         <Route path="/changepassword" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
         <Route path="/job/:jobId" element={<JobDisplay />} />
         <Route path="/applicationform" element={<ApplicationForm />} />
         <Route path="/editjob" element={<EditJob />} />
-        <Route path="/addcourseprovider" element={<AddCourseProvider />} />
         <Route path="/course" element={<ProtectedRoute><Course /></ProtectedRoute>} />
         <Route path="/postcourse" element={<PostCourse />} />
         <Route path="/dashboard1" element={<Dashboard1 />} />
@@ -106,14 +104,21 @@ function App() {
         <Route path="/highscorers" element={<HighScorers />} />
         <Route path="/profilepage" element={<ProfilePage />} />
         <Route path="/feedback" element={<Feedback />} />
-        <Route path="/review" element={<Review />} />
         <Route path="/selectedcandidate" element={<SelectedCandidates />} />
         <Route path="/coursedisplay" element={<CourseDisplay />} />
         <Route path="/applicationview" element={<ApplicationView />} />
         <Route path="/Chatbot" element={<Chatbot />}/>
-        <Route path="/status" element={<Status />} />
         <Route path="/AtsChecker" element={<AtsChecker />} />
         <Route path="/interview" element={<Interview />} />
+
+        {/* ADMIN */}
+        <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
+        <Route path="/addcompany" element={<AdminRoute><AddCompany /></AdminRoute>} />
+        <Route path="/userdetails" element={<AdminRoute><UserDetails /></AdminRoute>} />
+        <Route path="/status" element={<AdminRoute><Status /></AdminRoute>} />
+        <Route path="/review" element={<AdminRoute><Review /></AdminRoute>} />
+        <Route path="/addcourseprovider" element={<AdminRoute><AddCourseProvider /></AdminRoute>} />
+
         
       </Routes>
     </QuestionProvider>

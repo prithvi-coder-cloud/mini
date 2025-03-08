@@ -279,6 +279,7 @@ const ProfilePage = () => {
                 <input
                   type="text"
                   name="firstName"
+                  id="ed1"
                   value={profile.firstName}
                   onChange={handleChange}
                   onBlur={() => handleBlur('firstName')}
@@ -292,6 +293,7 @@ const ProfilePage = () => {
                 <input
                   type="text"
                   name="middleName"
+                  id="ed2"
                   value={profile.middleName}
                   onChange={(e) => setProfile({ ...profile, middleName: e.target.value })}
                 />
@@ -301,6 +303,7 @@ const ProfilePage = () => {
                 <input
                   type="text"
                   name="lastName"
+                  id="ed3"
                   value={profile.lastName}
                   onChange={handleChange}
                   onBlur={() => handleBlur('lastName')}
@@ -314,6 +317,7 @@ const ProfilePage = () => {
                 <input
                   type="text"
                   name="phoneNumber"
+                  id="ed4"
                   value={profile.phoneNumber}
                   onChange={handleChange}
                   onBlur={() => handleBlur('phoneNumber')}
@@ -322,17 +326,18 @@ const ProfilePage = () => {
                 />
                 {errors.phoneNumber && 
                   <span className="error-message">{errors.phoneNumber}</span>}
-                <span className="hint">Format: +[country code][10-digit number] (e.g., +911234567890)</span>
+                <span className="hint" id="ed5">Format: +[country code][10-digit number] (e.g., +911234567890)</span>
               </div>
               <div className="form-group">
                 <label>Email:</label>
-                <input type="email" value={profile.email} readOnly required />
+                <input type="email" id="ed6" value={profile.email} readOnly required />
               </div>
               <div className="form-group">
                 <label>Skills:</label>
                 <input
                   type="text"
                   name="skills"
+                  id="ed7"
                   value={profile.skills}
                   onChange={handleChange}
                   onBlur={() => handleBlur('skills')}
@@ -346,6 +351,7 @@ const ProfilePage = () => {
                 <input
                   type="text"
                   name="linkedinProfile"
+                  id="ed8"
                   value={profile.linkedinProfile}
                   onChange={handleChange}
                   onBlur={() => handleBlur('linkedinProfile')}
@@ -360,6 +366,7 @@ const ProfilePage = () => {
                 <input
                   type="text"
                   name="city"
+                  id="ed9"
                   value={profile.city}
                   onChange={handleChange}
                   onBlur={() => handleBlur('city')}
@@ -373,6 +380,7 @@ const ProfilePage = () => {
                 <input
                   type="text"
                   name="state"
+                  id="ed10"
                   value={profile.state}
                   onChange={handleChange}
                   onBlur={() => handleBlur('state')}
@@ -386,12 +394,13 @@ const ProfilePage = () => {
                 <input
                   type="file"
                   accept=".pdf"
+                  id="ed11"
                   onChange={handleResumeChange}
                   className="form-control"
                 />
                 {resumeError && <span className="error-message">{resumeError}</span>}
               </div>
-              <button type="submit">Save Profile</button>
+              <button id="ed12" type="submit">Save Profile</button>
             </form>
           </>
         ) : (
@@ -421,7 +430,7 @@ const ProfilePage = () => {
                 </p>
               )}
             </div>
-            <button onClick={handleEdit}>Edit Profile</button>
+            <button onClick={handleEdit} id="ed13">Edit Profile</button>
           </>
         )}
       </div>

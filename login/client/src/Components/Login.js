@@ -36,7 +36,8 @@ const Login = () => {
           ...res.data.user,
           displayName: res.data.user.name,
           email: email,
-          _id: res.data.user._id
+          _id: res.data.user._id,
+          role: res.data.user.role
         };
         
         sessionStorage.setItem('user', JSON.stringify(userData));

@@ -69,7 +69,7 @@ const SideNav = ({ isOpen, toggleNav, logout, userdata }) => {
             <FaFileAlt /> <span>Applied Jobs</span>
           </NavLink>
           
-          <NavLink to="/profilepage" onClick={toggleNav}>
+          <NavLink to="/profilepage" id="profile" onClick={toggleNav}>
             <FaUser /> <span>Profile</span>
           </NavLink>
           
