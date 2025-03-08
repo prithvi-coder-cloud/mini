@@ -58,7 +58,8 @@ import Status from './Components/admin/Status';
 import AtsChecker from './Components/AtsChecker';
 import Interview from './Components/Interview';
 import AdminRoute from './Components/AdminRoute';
-
+import CompanyRoute from './Components/CompanyRoute';
+import CourseProviderRoute from './Components/CourseProviderRoute';
 function App() {
   return (
     <QuestionProvider>
@@ -74,18 +75,13 @@ function App() {
         <Route path="/card" element={<Card />} />
         <Route path="/forgotpass" element={<ForgotPassword />} />
         <Route path="/verifycode" element={<VerifyCode />} />
-        <Route path="/jobposting" element={<JobPostingForm />} />
         <Route path="/updateuser" element={<UpdateUser />} />
         <Route path="/home1" element={<ProtectedRoute><Home1 /></ProtectedRoute>} />
         <Route path="/header1" element={<Header1 />} />
-        <Route path="/companyhome" element={<ProtectedRoute><CompanyHome /></ProtectedRoute>} />
-        <Route path="/viewjobs" element={<ViewJobs />} />
         <Route path="/changepassword" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
         <Route path="/job/:jobId" element={<JobDisplay />} />
         <Route path="/applicationform" element={<ApplicationForm />} />
-        <Route path="/editjob" element={<EditJob />} />
         <Route path="/course" element={<ProtectedRoute><Course /></ProtectedRoute>} />
-        <Route path="/postcourse" element={<PostCourse />} />
         <Route path="/dashboard1" element={<Dashboard1 />} />
         <Route path="/header" element={<ProtectedRoute><Header /></ProtectedRoute>} />
         <Route path="/courselist" element={<CourseList />} /> 
@@ -96,16 +92,10 @@ function App() {
         <Route path="/payment" element={<Payment/>}/>
         {/* <Route path="/profile" element={<Profile/>}/>
         <Route path="/profile1" element={<Profile1/>}/> */}
-        <Route path="/applicationd" element={<ApplicationDisplay />} />
-        <Route path="/datetime" element={<DateTimeModal />} />
-        <Route path="/addtest" element={<AddTest />} />
         <Route path="/test/:jobTitle" element={<TestDisplay />} />
         <Route path="/jobtitles" element={<JobTitles />} />
-        <Route path="/highscorers" element={<HighScorers />} />
         <Route path="/profilepage" element={<ProfilePage />} />
         <Route path="/feedback" element={<Feedback />} />
-        <Route path="/selectedcandidate" element={<SelectedCandidates />} />
-        <Route path="/coursedisplay" element={<CourseDisplay />} />
         <Route path="/applicationview" element={<ApplicationView />} />
         <Route path="/Chatbot" element={<Chatbot />}/>
         <Route path="/AtsChecker" element={<AtsChecker />} />
@@ -119,7 +109,21 @@ function App() {
         <Route path="/review" element={<AdminRoute><Review /></AdminRoute>} />
         <Route path="/addcourseprovider" element={<AdminRoute><AddCourseProvider /></AdminRoute>} />
 
-        
+          {/* COMPANY */}
+          <Route path="/jobposting" element={<CompanyRoute><JobPostingForm /></CompanyRoute>} />
+          <Route path="/companyhome" element={<ProtectedRoute><CompanyHome /></ProtectedRoute>} />
+          <Route path="/viewjobs" element={<CompanyRoute><ViewJobs /></CompanyRoute>} />
+          <Route path="/editjob" element={<CompanyRoute><EditJob /></CompanyRoute>} />
+          <Route path="/applicationd" element={<CompanyRoute><ApplicationDisplay /></CompanyRoute>} />
+          <Route path="/datetime" element={<CompanyRoute><DateTimeModal /></CompanyRoute>} />
+          <Route path="/addtest" element={<CompanyRoute><AddTest /></CompanyRoute>} />
+          <Route path="/highscorers" element={<CompanyRoute><HighScorers /></CompanyRoute>} />
+          <Route path="/selectedcandidate" element={<CompanyRoute><SelectedCandidates /></CompanyRoute>} />
+
+          {/* COURSE PROVIDER */}
+          <Route path="/postcourse" element={<CourseProviderRoute><PostCourse /></CourseProviderRoute>} />
+          <Route path="/coursedisplay" element={<CourseProviderRoute><CourseDisplay /></CourseProviderRoute>} />
+
       </Routes>
     </QuestionProvider>
   );
