@@ -7,58 +7,73 @@ import Header from './Header';
 
 const JobTitles = () => {
   const [jobTitles, setJobTitles] = useState([]);
-  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const userEmail = sessionStorage.getItem('email');
 
   useEffect(() => {
-    const storedEmail = sessionStorage.getItem('email');
-    if (storedEmail) {
-      setEmail(storedEmail);
-      console.log('Stored Email:', storedEmail);
-
-      const fetchJobTitles = async () => {
-        try {
-          const response = await axios.get(`${process.env.REACT_APP_API_URL}/jobtitles`, {
-            params: { email: storedEmail },
-          });
-
-          console.log('API Response:', response.data);
-          response.data.forEach(job => {
-            console.log('Company Logo Path:', job.companyLogo);
-          });
-
-          if (response.data && Array.isArray(response.data)) {
-            setJobTitles(response.data);
-          } else {
-            console.log('No job titles found');
-            setJobTitles([]);
-          }
-        } catch (error) {
-          console.error('Error fetching job titles:', error);
-          setJobTitles([]);
-        }
-      };
-
-      fetchJobTitles();
+    if (userEmail) {
+      fetchJobTitles(userEmail);
     }
-  }, []);
+  }, [userEmail]);
 
-  const handleJobTitleClick = (jobTitle) => {
+  const fetchJobTitles = async (email) => {
+    try {
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/jobtitles`, {
+        params: { email }
+      });
+
+      if (response.data && Array.isArray(response.data)) {
+        setJobTitles(response.data);
+      } else {
+        console.log('No job titles found');
+        setJobTitles([]);
+      }
+    } catch (error) {
+      console.error('Error fetching job titles:', error);
+      setError(error.response?.data?.message || 'Failed to fetch job titles');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleJobTitleClick = (jobId, jobTitle) => {
+    // Get the user-specific removed jobs
+    const allRemovedJobs = JSON.parse(sessionStorage.getItem('userRemovedJobs') || '{}');
+    
+    // Initialize array for current user if doesn't exist
+    if (!allRemovedJobs[userEmail]) {
+      allRemovedJobs[userEmail] = [];
+    }
+    
+    // Add the job ID to the user's removed jobs
+    allRemovedJobs[userEmail].push(jobId);
+    
+    // Save back to session storage
+    sessionStorage.setItem('userRemovedJobs', JSON.stringify(allRemovedJobs));
+    
+    // Update state to remove the job from display
+    setJobTitles(prevJobs => prevJobs.filter(job => job._id !== jobId));
+    
+    // Navigate to test page
     navigate(`/test/${jobTitle}`);
   };
 
-  const isTestSubmitted = (jobTitle) => {
-    const email = sessionStorage.getItem('email');
-    if (!email) return false;
+  // Filter out removed jobs for current user
+  const availableJobs = jobTitles.filter(job => {
+    const allRemovedJobs = JSON.parse(sessionStorage.getItem('userRemovedJobs') || '{}');
+    const userRemovedJobs = allRemovedJobs[userEmail] || [];
+    return !userRemovedJobs.includes(job._id);
+  });
 
-    try {
-      const submittedTests = JSON.parse(sessionStorage.getItem('submittedTests')) || {};
-      return submittedTests[email] && submittedTests[email].includes(jobTitle);
-    } catch (error) {
-      console.error('Error checking test submission status:', error);
-      return false;
-    }
-  };
+  if (loading) return <div className="course-loading">Loading tests...</div>;
+  if (error) return (
+    <div className="course-error">
+      <p>{error}</p>
+      <button onClick={() => fetchJobTitles(userEmail)}>Retry</button>
+    </div>
+  );
 
   return (
     <div className="job-titles-page">
@@ -77,11 +92,11 @@ const JobTitles = () => {
       {/* Main Content Section */}
       <div className="page-container">
         <div className="job-titles-container">
-          <h2>Available Test</h2>
+          <h2>Available Tests</h2>
           <div className="job-titles-list">
-            {jobTitles.length > 0 ? (
-              jobTitles.map((job, index) => (
-                <div key={index} className="job-item-container">
+            {availableJobs.length > 0 ? (
+              availableJobs.map((job) => (
+                <div key={job._id} className="job-item-container">
                   {/* Company Logo */}
                   <img
                     src={job.companyLogo ? 
@@ -117,16 +132,20 @@ const JobTitles = () => {
                   <div className="quiz-button-box">
                     <button
                       className="job-title-button"
-                      onClick={() => handleJobTitleClick(job.jobTitle)}
-                      disabled={isTestSubmitted(job.jobTitle)}
+                      onClick={() => handleJobTitleClick(job._id, job.jobTitle)}
                     >
-                      {isTestSubmitted(job.jobTitle) ? 'Test Completed' : 'Attend Exam'}
+                      Attend Exam
                     </button>
                   </div>
                 </div>
               ))
             ) : (
-              <p>No job titles available</p>
+              <div className="no-tests">
+                <p>No tests available at the moment.</p>
+                <button onClick={() => fetchJobTitles(userEmail)}>
+                  Refresh Tests
+                </button>
+              </div>
             )}
           </div>
         </div>

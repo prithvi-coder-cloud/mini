@@ -1148,34 +1148,41 @@ app.post('/submitTest', async (req, res) => {
 
 
 app.get('/jobtitles', async (req, res) => {
-  const { email } = req.query;
-  console.log('Received email:', email);
-
   try {
-    // Find applications by email
-    const applications = await Application.find({ email });
+    const { email } = req.query;
     
-    if (!applications.length) {
-      return res.status(404).json({ message: 'No applications found for this email' });
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
     }
 
-    // Extract jobIds from applications
-    const jobIds = applications.map((app) => app.jobId);
+    // Get user's applications
+    const applications = await Application.find({ email });
+    const appliedJobIds = applications.map(app => app.jobId.toString());
 
-    // Find jobs by jobIds
-    const jobs = await Job.find({ _id: { $in: jobIds } });
+    // Get all active jobs
+    const jobs = await Job.find({ status: 1 });
 
-    // Create a response array with jobTitle and companyName
-    const jobDetails = jobs.map((job) => ({
+    // Filter jobs that the user has applied to
+    const availableJobs = jobs.filter(job => 
+      appliedJobIds.includes(job._id.toString())
+    );
+
+    // Format the response
+    const jobTitles = availableJobs.map(job => ({
+      _id: job._id,
       jobTitle: job.jobTitle,
       companyName: job.companyName,
-      companyLogo: job.companyLogo,
+      companyLogo: job.companyLogo
     }));
 
-    res.json(jobDetails);
+    res.json(jobTitles);
+
   } catch (error) {
     console.error('Error fetching job titles:', error);
-    res.status(500).json({ message: 'Error fetching job titles' });
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error fetching job titles' 
+    });
   }
 });
 
@@ -3046,5 +3053,36 @@ app.get('/interviews', async (req, res) => {
   } catch (error) {
     console.error('Error fetching interviews:', error);
     res.status(500).json({ error: 'Failed to fetch interviews' });
+  }
+});
+
+// Add this near your other GET endpoints in app.js
+
+// Get completed tests for a user
+app.get('/completed-tests', async (req, res) => {
+  try {
+    const { email } = req.query;
+    
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+
+    const completedTests = await Score.find({ email });
+    
+    // Map the scores to include job IDs
+    const completedJobIds = completedTests.map(test => ({
+      jobId: test.jobId,
+      score: test.score,
+      completedAt: test.createdAt
+    }));
+
+    res.json(completedJobIds);
+
+  } catch (error) {
+    console.error('Error fetching completed tests:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error fetching completed tests' 
+    });
   }
 });
