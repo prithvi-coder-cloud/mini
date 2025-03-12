@@ -1,6 +1,8 @@
 const express = require('express');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const User = require('../models/user');
+const jwt = require('jsonwebtoken');
+const verifyToken = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -9,35 +11,71 @@ router.post('/login', async (req, res) => {
     const { email, password } = req.body;
     const user = await User.findOne({ email });
 
-    if (user && await bcrypt.compare(password, user.password)) {
-      res.json({
-        success: true,
-        name: user.name,
-        email: user.email
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password'
       });
-    } else {
-      res.json({ success: false });
     }
+
+    const isValidPassword = await bcrypt.compare(password, user.password);
+    
+    if (!isValidPassword) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password'
+      });
+    }
+
+    const token = jwt.sign(
+      { 
+        userId: user._id, 
+        email: user.email, 
+        role: user.role 
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    res.json({
+      success: true,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      },
+      token
+    });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    console.error('Login error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
   }
 });
 
-router.get('/user/profile', async (req, res) => {
+// Protected route example
+router.get('/user/profile', verifyToken, async (req, res) => {
   try {
-    const { email } = req.query;
-    const user = await User.findOne({ email });
-    
-    if (user) {
-      res.json({
-        name: user.name,
-        email: user.email,
+    const user = await User.findById(req.user.userId).select('-password');
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
       });
-    } else {
-      res.status(404).json({ message: 'User not found' });
     }
+    res.json({
+      success: true,
+      user
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Profile fetch error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
   }
 });
 

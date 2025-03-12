@@ -1,14 +1,19 @@
 import React from 'react';
 import './admin.css';
 import { NavLink, useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
 const Admin = () => {
   const navigate = useNavigate();
 
   const logout = () => {
-    // Implement your logout logic here
     sessionStorage.removeItem('user');
-
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('email');
+    
+    // Remove default authorization header
+    delete axios.defaults.headers.common['Authorization'];
+    
     navigate("/login");
   }
 

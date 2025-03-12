@@ -1,20 +1,27 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 
 const CourseProviderRoute = ({ children }) => {
   const user = JSON.parse(sessionStorage.getItem('user'));
+  const location = useLocation();
   
   if (!user) {
-    // Not logged in, redirect to login page
-    return <Navigate to="/login" />;
+    // Not logged in, redirect to login page with return url
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   if (user.role !== 'course provider') {
-    // Not an admin, redirect to home page
-    return <Navigate to="/" />;
+    // Logged in but not a course provider, redirect to appropriate dashboard based on role
+    if (user.role === 'admin') {
+      return <Navigate to="/admin" replace />;
+    } else if (user.role === 'company') {
+      return <Navigate to="/companyhome" replace />;
+    } else {
+      return <Navigate to="/" replace />;
+    }
   }
 
-  // Authorized, render component
+  // Authorized course provider, render component
   return children;
 };
 

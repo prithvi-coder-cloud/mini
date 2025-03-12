@@ -4,6 +4,32 @@ import './Error.css'
 
 const Error = () => {
   const navigate=useNavigate();
+  
+  const handleBackNavigation = () => {
+    const user = JSON.parse(sessionStorage.getItem('user'));
+    
+    if (user) {
+      // Redirect based on user role
+      switch (user.role) {
+        case 'admin':
+          navigate('/admin');
+          break;
+        case 'company':
+          navigate('/companyhome');
+          break;
+        case 'course provider':
+          navigate('/course');
+          break;
+        default:
+          navigate('/'); // For regular users
+          break;
+      }
+    } else {
+      // If no user is logged in, redirect to home page
+      navigate('/');
+    }
+  };
+
   return (
     <div className="error-page">
       <div className="error-container">
@@ -22,7 +48,7 @@ const Error = () => {
             </div>
           </div>
         </div>
-        <button className="back-button" onClick={()=>navigate("/")}>Back To Home</button>
+        <button className="back-button" onClick={handleBackNavigation}>Back To Dashboard</button>
       </div>
     </div>
   )

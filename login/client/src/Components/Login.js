@@ -29,39 +29,43 @@ const Login = () => {
   async function submit(e) {
     e.preventDefault();
     try {
-      const res = await axios.post(`${process.env.REACT_APP_API_URL}/login`, { email, password });
+      const response = await axios.post(`${process.env.REACT_APP_API_URL}/login`, { 
+        email, 
+        password 
+      });
 
-      if (res.data.user) {
+      // Check if response has data
+      if (response.data) {
         const userData = {
-          ...res.data.user,
-          displayName: res.data.user.name,
+          ...response.data.user,
+          displayName: response.data.user.name,
           email: email,
-          _id: res.data.user._id,
-          role: res.data.user.role
+          _id: response.data.user._id,
+          role: response.data.user.role
         };
         
+        // Store user data and token
         sessionStorage.setItem('user', JSON.stringify(userData));
+        sessionStorage.setItem('token', response.data.token);
         sessionStorage.setItem('email', email);
 
         // Navigate based on role
-        if (res.data.user?.role === 'admin') {
+        if (userData.role === 'admin') {
           navigate('/admin');
-        } else if (res.data.user?.role === 'company') {
+        } else if (userData.role === 'company') {
           navigate('/companyhome');
-        } else if (res.data.user?.role === 'course provider') {
+        } else if (userData.role === 'course provider') {
           navigate('/course');
         } else {
           navigate('/');
         }
-      } else if (res.data === 'notexist') {
-        alert("User doesn't exist or incorrect credentials");
       }
-    } catch (e) {
-      console.error('Login error:', e);
-      if (e.response && e.response.data) {
-        alert(e.response.data.message || 'Something went wrong');
+    } catch (error) {
+      console.error('Login error:', error);
+      if (error.response?.data?.message) {
+        alert(error.response.data.message);
       } else {
-        alert('Something went wrong');
+        alert('Login failed. Please try again.');
       }
     }
   }
@@ -95,9 +99,16 @@ const Login = () => {
           </ul>
         </nav>
       </header>
-      <br></br>
-      <h1 style={{ textAlign: 'center' }}>Login</h1>
+      
+      <div className='welcome-text'>
+        <h2>Welcome to Job Board</h2>
+        <p>If you are a new user please signup</p>
+        <Link to="/signup" className="signup-button">Sign Up</Link>
+      </div>
+
+      
       <div className='form'>
+
         <form className='login-form' onSubmit={submit}>
           <label htmlFor='email'>Email</label>
           <input
@@ -128,9 +139,9 @@ const Login = () => {
             </span>
           </div>
           <button  id='login' type='submit'>Login</button>
-          <p className='message'>
+          {/* <p className='message'>
             <Link to='/signup'>Not registered? Create an account</Link>
-          </p>
+          </p> */}
         </form>
         <button className='login-with-google-btn' onClick={loginWithGoogle}>
           Sign in with Google
