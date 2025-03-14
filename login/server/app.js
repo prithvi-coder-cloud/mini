@@ -39,6 +39,7 @@ const fsPromises = require('fs').promises;
 const PDFParser = require('pdf-parse');
 const tf = require('@tensorflow/tfjs');
 const use = require('@tensorflow-models/universal-sentence-encoder');
+const jwt = require('jsonwebtoken');
 
 const clientid = process.env.CLIENT_ID;
 const clientsecret = process.env.CLIENT_SECRET;
@@ -157,61 +158,52 @@ app.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Check for admin login first
-    if (email === 'admin' && password === 'admin') {
-      return res.json({ 
-        msg: "exist", 
-        user: {
-          _id: 'admin',
-          email: 'admin',
-          role: 'admin',
-          name: 'Administrator'
-        }
+    // Find user by email
+    const user = await collection.findOne({ email });
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password'
       });
     }
 
-    // If not admin, check regular users
-    const user = await collection.findOne({ email: email });
+    // Compare password
+    const isMatch = await bcrypt.compare(password, user.password);
 
-    if (user) {
-      const isMatch = await bcrypt.compare(password, user.password);
-      if (isMatch) {
-        if (user.status === 0) {
-          res.json({ msg: "Your account is disabled. Please contact support." });
-        } else {
-          res.json({ 
-            msg: "exist", 
-            user: {
-              _id: user._id.toString(),
-              email: user.email,
-              role: user.role,
-              name: user.name
-            }
-          });
-        }
-    } else {
-        res.json("notexist");
-      }
-    } else {
-      // Check if it's a Google user
-      const googleUser = await users.findOne({ email: email });
-      if (googleUser) {
-        res.json({
-          msg: "exist",
-          user: {
-            _id: googleUser._id.toString(),
-            email: googleUser.email,
-            googleId: googleUser.googleId,
-            displayName: googleUser.displayName
-          }
-        });
-      } else {
-        res.json("notexist");
-      }
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password'
+      });
     }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: user._id, email: user.email, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    // Send success response
+    res.json({
+      success: true,
+      message: 'Login successful',
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      },
+      token
+    });
+
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
   }
 });
 

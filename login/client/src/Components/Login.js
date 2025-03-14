@@ -12,7 +12,13 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Clear any existing session data on login page load
+    sessionStorage.clear();
+  }, []);
 
   const back = () => {
     navigate('/');
@@ -26,16 +32,17 @@ const Login = () => {
     setShowPassword(!showPassword);
   };
 
-  async function submit(e) {
+  const submit = async (e) => {
     e.preventDefault();
+    setError('');
+
     try {
-      const response = await axios.post(`${process.env.REACT_APP_API_URL}/login`, { 
-        email, 
-        password 
+      const response = await axios.post(`${process.env.REACT_APP_API_URL}/login`, {
+        email,
+        password
       });
 
-      // Check if response has data
-      if (response.data) {
+      if (response.data.success) {
         const userData = {
           ...response.data.user,
           displayName: response.data.user.name,
@@ -43,32 +50,37 @@ const Login = () => {
           _id: response.data.user._id,
           role: response.data.user.role
         };
-        
+
         // Store user data and token
         sessionStorage.setItem('user', JSON.stringify(userData));
         sessionStorage.setItem('token', response.data.token);
         sessionStorage.setItem('email', email);
 
+        // Set default authorization header for future requests
+        axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+
         // Navigate based on role
-        if (userData.role === 'admin') {
-          navigate('/admin');
-        } else if (userData.role === 'company') {
-          navigate('/companyhome');
-        } else if (userData.role === 'course provider') {
-          navigate('/course');
-        } else {
-          navigate('/');
+        switch (userData.role) {
+          case 'admin':
+            navigate('/admin');
+            break;
+          case 'company':
+            navigate('/companyhome');
+            break;
+          case 'course provider':
+            navigate('/course');
+            break;
+          default:
+            navigate('/');
         }
+      } else {
+        setError(response.data.message || 'Login failed');
       }
     } catch (error) {
       console.error('Login error:', error);
-      if (error.response?.data?.message) {
-        alert(error.response.data.message);
-      } else {
-        alert('Login failed. Please try again.');
-      }
+      setError(error.response?.data?.message || 'Invalid credentials');
     }
-  }
+  };
 
   // Add logging for Google login success
   useEffect(() => {
@@ -108,7 +120,8 @@ const Login = () => {
 
       
       <div className='form'>
-
+        <h2>Login</h2>
+        {error && <div className="error-message">{error}</div>}
         <form className='login-form' onSubmit={submit}>
           <label htmlFor='email'>Email</label>
           <input
@@ -139,9 +152,9 @@ const Login = () => {
             </span>
           </div>
           <button  id='login' type='submit'>Login</button>
-          {/* <p className='message'>
-            <Link to='/signup'>Not registered? Create an account</Link>
-          </p> */}
+          <p className='message'>
+            Not registered? <Link to='/signup'>Create an account</Link>
+          </p>
         </form>
         <button className='login-with-google-btn' onClick={loginWithGoogle}>
           Sign in with Google
