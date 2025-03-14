@@ -75,7 +75,7 @@ cron.schedule('* * * * *', async () => {
 });
 
 app.use(cors({
-  origin: ["http://localhost:3000", "https://jobboardweb.netlify.app","https://mini-9fea.onrender.com"],
+  origin: ["https://jobboardweb.netlify.app","https://mini-9fea.onrender.com"],
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true,
   exposedHeaders: ['Content-Length', 'X-Foo', 'X-Bar'],
